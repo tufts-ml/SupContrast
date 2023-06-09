@@ -17,12 +17,6 @@ from util import set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
 
-try:
-    import apex
-    from apex import amp, optimizers
-except ImportError:
-    pass
-
 
 def parse_option():
     parser = argparse.ArgumentParser('argument for training')
@@ -54,10 +48,14 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'path'], help='dataset')
-    parser.add_argument('--mean', type=str, help='mean of dataset in path in form of str tuple')
-    parser.add_argument('--std', type=str, help='std of dataset in path in form of str tuple')
-    parser.add_argument('--data_folder', type=str, default=None, help='path to custom dataset')
-    parser.add_argument('--size', type=int, default=32, help='parameter for RandomResizedCrop')
+    parser.add_argument('--mean', type=str,
+                        help='mean of dataset in path in form of str tuple')
+    parser.add_argument('--std', type=str,
+                        help='std of dataset in path in form of str tuple')
+    parser.add_argument('--data_folder', type=str,
+                        default=None, help='path to custom dataset')
+    parser.add_argument('--size', type=int, default=32,
+                        help='parameter for RandomResizedCrop')
 
     # method
     parser.add_argument('--method', type=str, default='SupCon',
@@ -70,8 +68,6 @@ def parse_option():
     # other setting
     parser.add_argument('--cosine', action='store_true',
                         help='using cosine annealing')
-    parser.add_argument('--syncBN', action='store_true',
-                        help='using synchronized batch normalization')
     parser.add_argument('--warm', action='store_true',
                         help='warm-up for large batch training')
     parser.add_argument('--trial', type=str, default='0',
@@ -113,7 +109,7 @@ def parse_option():
         if opt.cosine:
             eta_min = opt.learning_rate * (opt.lr_decay_rate ** 3)
             opt.warmup_to = eta_min + (opt.learning_rate - eta_min) * (
-                    1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
+                1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
         else:
             opt.warmup_to = opt.learning_rate
 
@@ -156,21 +152,24 @@ def set_loader(opt):
 
     if opt.dataset == 'cifar10':
         train_dataset = datasets.CIFAR10(root=opt.data_folder,
-                                         transform=TwoCropTransform(train_transform),
+                                         transform=TwoCropTransform(
+                                             train_transform),
                                          download=True)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
-                                          transform=TwoCropTransform(train_transform),
+                                          transform=TwoCropTransform(
+                                              train_transform),
                                           download=True)
     elif opt.dataset == 'path':
         train_dataset = datasets.ImageFolder(root=opt.data_folder,
-                                            transform=TwoCropTransform(train_transform))
+                                             transform=TwoCropTransform(train_transform))
     else:
         raise ValueError(opt.dataset)
 
     train_sampler = None
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
+        train_dataset, batch_size=opt.batch_size, shuffle=(
+            train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
 
     return train_loader
@@ -179,10 +178,6 @@ def set_loader(opt):
 def set_model(opt):
     model = SupConResNet(name=opt.model)
     criterion = SupConLoss(temperature=opt.temp)
-
-    # enable synchronized Batch Normalization
-    if opt.syncBN:
-        model = apex.parallel.convert_syncbn_model(model)
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
@@ -245,8 +240,8 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
                   'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'loss {loss.val:.3f} ({loss.avg:.3f})'.format(
-                   epoch, idx + 1, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses))
+                      epoch, idx + 1, len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses))
             sys.stdout.flush()
 
     return losses.avg
@@ -279,7 +274,8 @@ def main():
 
         # tensorboard logger
         logger.log_value('loss', loss, epoch)
-        logger.log_value('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+        logger.log_value(
+            'learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
         if epoch % opt.save_freq == 0:
             save_file = os.path.join(

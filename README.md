@@ -63,7 +63,7 @@ You might use `CUDA_VISIBLE_DEVICES` to set proper number of GPUs, and/or switch
 ```
 python main_ce.py --batch_size 1024 \
   --learning_rate 0.8 \
-  --cosine --syncBN \
+  --cosine \
 ```
 **(2) Supervised Contrastive Learning**  
 Pretraining stage:
@@ -73,10 +73,6 @@ python main_supcon.py --batch_size 1024 \
   --temp 0.1 \
   --cosine
 ```
-
-<s>You can also specify `--syncBN` but I found it not crucial for SupContrast (`syncBN` 95.9% v.s. `BN` 96.0%). </s>
-
-WARN: Currently, `--syncBN` has no effect since the code is using `DataParallel` instead of `DistributedDataParaleel`
 
 Linear evaluation stage:
 ```
@@ -90,7 +86,7 @@ Pretraining stage:
 python main_supcon.py --batch_size 1024 \
   --learning_rate 0.5 \
   --temp 0.5 \
-  --cosine --syncBN \
+  --cosine \
   --method SimCLR
 ```
 The `--method SimCLR` flag simply stops `labels` from being passed to `SupConLoss` criterion.

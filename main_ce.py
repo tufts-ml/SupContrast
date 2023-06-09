@@ -16,12 +16,6 @@ from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import set_optimizer, save_model
 from networks.resnet_big import SupCEResNet
 
-try:
-    import apex
-    from apex import amp, optimizers
-except ImportError:
-    pass
-
 
 def parse_option():
     parser = argparse.ArgumentParser('argument for training')
@@ -57,8 +51,6 @@ def parse_option():
     # other setting
     parser.add_argument('--cosine', action='store_true',
                         help='using cosine annealing')
-    parser.add_argument('--syncBN', action='store_true',
-                        help='using synchronized batch normalization')
     parser.add_argument('--warm', action='store_true',
                         help='warm-up for large batch training')
     parser.add_argument('--trial', type=str, default='0',
@@ -93,7 +85,7 @@ def parse_option():
         if opt.cosine:
             eta_min = opt.learning_rate * (opt.lr_decay_rate ** 3)
             opt.warmup_to = eta_min + (opt.learning_rate - eta_min) * (
-                    1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
+                1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
         else:
             opt.warmup_to = opt.learning_rate
 
@@ -158,7 +150,8 @@ def set_loader(opt):
 
     train_sampler = None
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
+        train_dataset, batch_size=opt.batch_size, shuffle=(
+            train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
     val_loader = torch.utils.data.DataLoader(
         val_dataset, batch_size=256, shuffle=False,
@@ -170,10 +163,6 @@ def set_loader(opt):
 def set_model(opt):
     model = SupCEResNet(name=opt.model, num_classes=opt.n_cls)
     criterion = torch.nn.CrossEntropyLoss()
-
-    # enable synchronized Batch Normalization
-    if opt.syncBN:
-        model = apex.parallel.convert_syncbn_model(model)
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
@@ -230,8 +219,8 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
                   'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'loss {loss.val:.3f} ({loss.avg:.3f})\t'
                   'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                   epoch, idx + 1, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1))
+                      epoch, idx + 1, len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses, top1=top1))
             sys.stdout.flush()
 
     return losses.avg, top1.avg
@@ -270,8 +259,8 @@ def validate(val_loader, model, criterion, opt):
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                       idx, len(val_loader), batch_time=batch_time,
-                       loss=losses, top1=top1))
+                          idx, len(val_loader), batch_time=batch_time,
+                          loss=losses, top1=top1))
 
     print(' * Acc@1 {top1.avg:.3f}'.format(top1=top1))
     return losses.avg, top1.avg
@@ -299,14 +288,16 @@ def main():
 
         # train for one epoch
         time1 = time.time()
-        loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, opt)
+        loss, train_acc = train(train_loader, model,
+                                criterion, optimizer, epoch, opt)
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
         # tensorboard logger
         logger.log_value('train_loss', loss, epoch)
         logger.log_value('train_acc', train_acc, epoch)
-        logger.log_value('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+        logger.log_value(
+            'learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
         # evaluation
         loss, val_acc = validate(val_loader, model, criterion, opt)
