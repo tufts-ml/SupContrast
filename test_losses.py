@@ -17,6 +17,7 @@ def spoof_self_sup_embeds(batch_size=10, embed_dim=10):
 
 def test_self_sup():
     embeds = spoof_self_sup_embeds()
-    old_loss = losses.SupConLoss(contrast_mode="one")
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = losses.SupConLoss()
     new_loss = revised_losses.InfoNCELoss()
     assert torch.isclose(old_loss(embeds), new_loss(embeds), atol=1e-7)
