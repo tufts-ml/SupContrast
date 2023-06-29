@@ -15,9 +15,33 @@ def spoof_self_sup_embeds(batch_size=10, embed_dim=10):
     return spoof_embeds(batch_size, embed_dim, 2)
 
 
+def spoof_sup_embeds(n_labels=4, n_per_label=3, embed_dim=10):
+    # use self-supervised embeds as base
+    embeds = spoof_self_sup_embeds(n_labels, embed_dim)
+    # construct labels with repeats next to each other
+    labels = torch.arange(n_labels)
+    labels = torch.repeat_interleave(labels, n_per_label, dim=0)
+    # duplicate random vectors with the same label
+    embeds = torch.repeat_interleave(embeds, n_per_label, dim=0)
+    return embeds, labels
+
+
 def test_self_sup():
     embeds = spoof_self_sup_embeds()
     # use default "all" contrast mode, which computes loss for all views instead of single view
     old_loss = losses.SupConLoss()
     new_loss = revised_losses.InfoNCELoss()
     assert torch.isclose(old_loss(embeds), new_loss(embeds), atol=1e-7)
+
+
+def test_sup():
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = losses.SupConLoss()
+    new_loss = revised_losses.MultiviewSINCELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    # new loss always strictly less than old loss due to the correction of the softmax denominator
+    # old_loss usually greater than 1.5
+    # new loss usually much less than 0.1, but varies more from random samples
+    assert old_val > new_val
