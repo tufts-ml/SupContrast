@@ -25,8 +25,8 @@ class SINCELoss(nn.Module):
         same_label = labels.unsqueeze(0) == labels.unsqueeze(1)
 
         # masking with -inf to get zeros in the summation for the softmax denominator
-        denom_activations = logits.clone()
-        denom_activations[same_label] = float("-inf")
+        denom_activations = torch.full_like(logits, float("-inf")) 
+        denom_activations[~same_label] = logits[~same_label]
         # get logsumexp of the logits between embeds of different labels for each row (B,)
         base_denom_row = torch.logsumexp(denom_activations, dim=0)
         # reshape to be (B, B) with row values equivalent, to be masked later
