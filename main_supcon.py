@@ -16,6 +16,7 @@ from util import adjust_learning_rate, warmup_learning_rate
 from util import set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
+from revised_losses import MultiviewSINCELoss, InfoNCELoss
 
 
 def parse_option():
@@ -60,6 +61,7 @@ def parse_option():
     # method
     parser.add_argument('--method', type=str, default='SupCon',
                         choices=['SupCon', 'SimCLR'], help='choose method')
+    parser.add_argument('--revised', action='store_true', help='use revised losses')
 
     # temperature
     parser.add_argument('--temp', type=float, default=0.07,
@@ -177,7 +179,15 @@ def set_loader(opt):
 
 def set_model(opt):
     model = SupConResNet(name=opt.model)
-    criterion = SupConLoss(temperature=opt.temp)
+    if not opt.revised:
+        # original implementation does not set base_temperature, but setting here to make
+        # hyperparameters comparable between implementations
+        criterion = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
+    else:
+        if opt.method == 'SupCon':
+            criterion = MultiviewSINCELoss(temperature=opt.temp)
+        elif opt.method == 'SimCLR':
+            criterion = InfoNCELoss(temperature=opt.temp)
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
