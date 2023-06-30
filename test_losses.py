@@ -31,7 +31,8 @@ def test_self_sup():
     # use default "all" contrast mode, which computes loss for all views instead of single view
     old_loss = losses.SupConLoss()
     new_loss = revised_losses.InfoNCELoss()
-    assert torch.isclose(old_loss(embeds), new_loss(embeds), atol=1e-7)
+    # tolerance raised slightly due to old loss not using logsumexp function
+    assert torch.isclose(old_loss(embeds), new_loss(embeds), atol=5e-7)
 
 
 def test_sup():

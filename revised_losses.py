@@ -18,7 +18,8 @@ class SINCELoss(nn.Module):
             torch.Tensor: Scalar loss.
         """
         # calculate logits (activations) for each embeddings pair (B, B)
-        logits = nn.functional.cosine_similarity(embeds.unsqueeze(2), embeds.T.unsqueeze(0))
+        # using matrix multiply instead of cosine distance function for ~10x cost reduction
+        logits = embeds @ embeds.T
         logits /= self.temperature
         # determine which logits are between embeds of the same label (B, B)
         same_label = labels.unsqueeze(0) == labels.unsqueeze(1)
