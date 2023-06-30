@@ -61,7 +61,8 @@ def parse_option():
     # method
     parser.add_argument('--method', type=str, default='SupCon',
                         choices=['SupCon', 'SimCLR'], help='choose method')
-    parser.add_argument('--revised', action='store_true', help='use revised losses')
+    parser.add_argument('--implementation', type=str, default='old',
+                        choices=['old', 'new'], help='loss implemenation version')
 
     # temperature
     parser.add_argument('--temp', type=float, default=0.07,
@@ -179,7 +180,7 @@ def set_loader(opt):
 
 def set_model(opt):
     model = SupConResNet(name=opt.model)
-    if not opt.revised:
+    if opt.implementation == 'old':
         # original implementation does not set base_temperature, but setting here to make
         # hyperparameters comparable between implementations
         criterion = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
