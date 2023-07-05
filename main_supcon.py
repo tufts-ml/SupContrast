@@ -192,9 +192,13 @@ def set_model(opt):
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.DataParallel(model.encoder)
-        model = model.cuda()
-        criterion = criterion.cuda()
+            model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
+        if opt.device is None:
+            model = model.cuda()
+            criterion = criterion.cuda()
+        else:
+            model = model.to(opt.device)
+            criterion = criterion.to(opt.device)
         cudnn.benchmark = True
 
     return model, criterion
@@ -214,8 +218,12 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
 
         images = torch.cat([images[0], images[1]], dim=0)
         if torch.cuda.is_available():
-            images = images.cuda(non_blocking=True)
-            labels = labels.cuda(non_blocking=True)
+            if opt.device is None:
+                images = images.cuda(non_blocking=True)
+                labels = labels.cuda(non_blocking=True)
+            else:
+                images = images.to(opt.device, non_blocking=True)
+                labels = labels.to(opt.device, non_blocking=True)
         bsz = labels.shape[0]
 
         # warm-up learning rate
@@ -258,9 +266,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
     return losses.avg
 
 
-def main():
-    opt = parse_option()
-
+def main(opt):
     # build data loader
     train_loader = set_loader(opt)
 
@@ -299,5 +305,21 @@ def main():
     save_model(model, optimizer, opt, opt.epochs, save_file)
 
 
+def launch_parallel(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    torch.distributed.init_process_group("gloo", rank=rank, world_size=world_size)
+    opt = parse_option()
+    # modify options for parallel processing
+    opt.device = rank
+    opt.batch_size = opt.batch_size // world_size
+    main(opt)
+
+
 if __name__ == '__main__':
-    main()
+    parallel = True
+    if not parallel:
+        main(parse_option())
+    else:
+        world_size = 2
+        torch.multiprocessing.spawn(launch_parallel, (world_size,), world_size)
