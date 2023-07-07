@@ -117,12 +117,10 @@ def parse_option():
             opt.warmup_to = opt.learning_rate
 
     opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
-    if not os.path.isdir(opt.tb_folder):
-        os.makedirs(opt.tb_folder)
+    os.makedirs(opt.tb_folder, exist_ok=True)
 
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
-    if not os.path.isdir(opt.save_folder):
-        os.makedirs(opt.save_folder)
+    os.makedirs(opt.save_folder, exist_ok=True)
 
     return opt
 
