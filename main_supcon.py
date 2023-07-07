@@ -192,7 +192,7 @@ def set_model(opt):
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            model = torch.nn.parallel.DistributedDataParallel(model)
+            model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
         if opt.device is None:
             model = model.cuda()
             criterion = criterion.cuda()
