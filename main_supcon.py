@@ -279,8 +279,9 @@ def main(opt):
     # build optimizer
     optimizer = set_optimizer(opt, model)
 
-    # tensorboard
-    logger = SummaryWriter(logdir=opt.tb_folder)
+    # tensorboard, only for first process if multiple
+    if opt.device is None or opt.device == 0:
+        logger = SummaryWriter(logdir=opt.tb_folder)
 
     # training routine
     for epoch in range(1, opt.epochs + 1):
@@ -293,8 +294,9 @@ def main(opt):
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
         # tensorboard logger
-        logger.add_scalar('loss', loss, epoch)
-        logger.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+        if opt.device is None or opt.device == 0:
+            logger.add_scalar('loss', loss, epoch)
+            logger.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
         if epoch % opt.save_freq == 0:
             save_file = os.path.join(
