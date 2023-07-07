@@ -213,6 +213,9 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
     losses = AverageMeter()
 
     end = time.time()
+    # change reshuffle split of data across GPUs
+    if opt.device is not None:
+        train_loader.sampler.set_epoch(epoch)
     for idx, (images, labels) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
