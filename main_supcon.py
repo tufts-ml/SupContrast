@@ -281,7 +281,7 @@ def main(opt):
 
     # tensorboard, only for first process if multiple
     if opt.device is None or opt.device == 0:
-        logger = SummaryWriter(logdir=opt.tb_folder)
+        logger = SummaryWriter(log_dir=opt.tb_folder)
 
     # training routine
     for epoch in range(1, opt.epochs + 1):
