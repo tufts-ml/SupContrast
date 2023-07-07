@@ -191,14 +191,14 @@ def set_model(opt):
             criterion = InfoNCELoss(temperature=opt.temp)
 
     if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
         if opt.device is None:
             model = model.cuda()
             criterion = criterion.cuda()
         else:
             model = model.to(opt.device)
             criterion = criterion.to(opt.device)
+        if torch.cuda.device_count() > 1:
+            model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
         cudnn.benchmark = True
 
     return model, criterion
