@@ -169,10 +169,10 @@ def set_loader(opt):
     else:
         raise ValueError(opt.dataset)
 
-    train_sampler = None
+    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if opt.device is not None \
+        else None
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(
-            train_sampler is None),
+        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
 
     return train_loader
@@ -192,7 +192,7 @@ def set_model(opt):
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
+            model = torch.nn.parallel.DistributedDataParallel(model)
         if opt.device is None:
             model = model.cuda()
             criterion = criterion.cuda()
@@ -308,10 +308,11 @@ def main(opt):
 def launch_parallel(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-    torch.distributed.init_process_group("gloo", rank=rank, world_size=world_size)
+    # need to use gloo instead of nccl for Windows, but nccl faster on Linux
+    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
     opt = parse_option()
     # modify options for parallel processing
-    opt.device = rank
+    opt.device = rank  # opt.device = None if not using parallel processing
     opt.batch_size = opt.batch_size // world_size
     main(opt)
 
