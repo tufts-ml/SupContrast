@@ -233,6 +233,8 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
         # compute loss
+        # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
+        # see MoCo v3 for full batch size parallelization with torch's all_gather
         features = model(images)
         f1, f2 = torch.split(features, [bsz, bsz], dim=0)
         features = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
