@@ -1,3 +1,6 @@
+# dataset download folder
+datasets/
+
 tmp*.py
 .idea/
 
