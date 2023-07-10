@@ -167,8 +167,7 @@ def set_loader(opt):
     else:
         raise ValueError(opt.dataset)
 
-    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if opt.device is not None \
-        else None
+    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if "device" in opt else None
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
@@ -189,7 +188,7 @@ def set_model(opt):
             criterion = InfoNCELoss(temperature=opt.temp)
 
     if torch.cuda.is_available():
-        if opt.device is None:
+        if "device" not in opt:
             model = model.cuda()
             criterion = criterion.cuda()
         else:
@@ -212,14 +211,14 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
 
     end = time.time()
     # change reshuffle split of data across GPUs
-    if opt.device is not None:
+    if "device" in opt:
         train_loader.sampler.set_epoch(epoch)
     for idx, (images, labels) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
         images = torch.cat([images[0], images[1]], dim=0)
         if torch.cuda.is_available():
-            if opt.device is None:
+            if "device" not in opt:
                 images = images.cuda(non_blocking=True)
                 labels = labels.cuda(non_blocking=True)
             else:
@@ -280,7 +279,7 @@ def main(opt):
     optimizer = set_optimizer(opt, model)
 
     # tensorboard, only for first process if multiple
-    if opt.device is None or opt.device == 0:
+    if "device" not in opt or opt.device == 0:
         logger = SummaryWriter(log_dir=opt.tb_folder)
 
     # training routine
@@ -294,7 +293,7 @@ def main(opt):
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
         # tensorboard logger
-        if opt.device is None or opt.device == 0:
+        if "device" not in opt or opt.device == 0:
             logger.add_scalar('loss', loss, epoch)
             logger.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
@@ -316,13 +315,13 @@ def launch_parallel(rank, world_size):
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
     opt = parse_option()
     # modify options for parallel processing
-    opt.device = rank  # opt.device = None if not using parallel processing
+    opt.device = rank  # device not in opt if not using parallel processing
     opt.batch_size = opt.batch_size // world_size
     main(opt)
 
 
 if __name__ == '__main__':
-    parallel = True
+    parallel = False
     if not parallel:
         main(parse_option())
     else:
