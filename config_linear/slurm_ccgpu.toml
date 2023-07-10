@@ -1,0 +1,8 @@
+launch_cmd = "cd ~/SupContrast; nvidia-smi; pipenv run python main_linear.py"
+
+[sbatch]
+-p = "ccgpu,gpu"
+-t = "0-20:0:0"
+--gres = "gpu:a100:1"
+-c = 16
+-o = "slurm_out/%A_%a.out"
