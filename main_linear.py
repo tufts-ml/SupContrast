@@ -185,6 +185,7 @@ def validate(val_loader, model, classifier, criterion, opt):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
+    top5 = AverageMeter()
 
     with torch.no_grad():
         end = time.time()
@@ -201,6 +202,7 @@ def validate(val_loader, model, classifier, criterion, opt):
             losses.update(loss.item(), bsz)
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             top1.update(acc1[0], bsz)
+            top5.update(acc5[0], bsz)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -214,7 +216,7 @@ def validate(val_loader, model, classifier, criterion, opt):
                        idx, len(val_loader), batch_time=batch_time,
                        loss=losses, top1=top1))
 
-    print(' * Acc@1 {top1.avg:.3f}'.format(top1=top1))
+    print(' * Acc@1 {top1.avg:.3f} | Acc@5 {top5.avg:.3f}'.format(top1=top1, top5=top5))
     return losses.avg, top1.avg
 
 
