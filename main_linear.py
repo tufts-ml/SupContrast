@@ -4,6 +4,8 @@ import sys
 import argparse
 import time
 import math
+import os
+from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -11,7 +13,7 @@ import torch.backends.cudnn as cudnn
 from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, accuracy
-from util import set_optimizer
+from util import save_model, set_optimizer
 from networks.resnet_big import SupConResNet, LinearClassifier
 
 
@@ -65,9 +67,9 @@ def parse_option():
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
-    opt.model_name = '{}_{}_lr_{}_decay_{}_bsz_{}'.\
-        format(opt.dataset, opt.model, opt.learning_rate, opt.weight_decay,
-               opt.batch_size)
+    opt.model_name = '{}_lr_{}_bsz_{}_{}'.\
+        format(opt.dataset, opt.learning_rate, opt.batch_size,
+               Path(opt.ckpt).stem)
 
     if opt.cosine:
         opt.model_name = '{}_cosine'.format(opt.model_name)
@@ -90,6 +92,10 @@ def parse_option():
         opt.n_cls = 100
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
+
+    opt.model_path = './save/linear/{}_models'.format(opt.dataset)
+    opt.save_folder = os.path.join(opt.model_path, opt.model_name)
+    os.makedirs(opt.save_folder, exist_ok=True)
 
     return opt
 
@@ -251,6 +257,11 @@ def main():
             best_acc = val_acc
 
     print('best accuracy: {:.2f}'.format(best_acc))
+
+    # save the last model
+    save_file = os.path.join(
+        opt.save_folder, 'last.pth')
+    save_model(model, optimizer, opt, opt.epochs, save_file)
 
 
 if __name__ == '__main__':
