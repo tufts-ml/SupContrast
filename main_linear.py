@@ -226,6 +226,32 @@ def validate(val_loader, model, classifier, criterion, opt):
     return losses.avg, top1.avg
 
 
+def cache_outputs(val_loader, model, classifier, opt):
+    # save model outputs for analysis and bootstrapping
+    model.eval()
+    classifier.eval()
+    # caches for outputs
+    embeds = torch.empty((128, 0))
+    preds = torch.empty((0,))
+    labels = torch.empty((0,))
+    with torch.no_grad():
+        for b_images, b_labels in val_loader:
+            b_images = b_images.float().cuda()
+            b_labels = b_labels.cuda()
+            # forward
+            b_embeds = model.encoder(b_images)
+            b_preds = classifier(b_embeds)
+            # cache
+            embeds = torch.vstack((embeds, b_embeds))
+            preds = torch.hstack((preds, b_preds))
+            labels = torch.hstack((labels, b_labels))
+    # save caches
+    torch.save(embeds, os.path.join(opt.save_folder, "embeds.pth"))
+    torch.save(preds, os.path.join(opt.save_folder, "preds.pth"))
+    torch.save(labels, os.path.join(opt.save_folder, "labels.pth"))
+    return
+
+
 def main():
     best_acc = 0
     opt = parse_option()
@@ -262,6 +288,7 @@ def main():
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
     save_model(model, optimizer, opt, opt.epochs, save_file)
+    cache_outputs(val_loader, model, classifier, opt)
 
 
 if __name__ == '__main__':
