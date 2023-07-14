@@ -231,7 +231,7 @@ def cache_outputs(val_loader, model, classifier, opt):
     model.eval()
     classifier.eval()
     # caches for outputs
-    embeds = torch.empty((128, 0))
+    embeds = torch.empty((0, 2048))
     preds = torch.empty((0,))
     labels = torch.empty((0,))
     with torch.no_grad():
