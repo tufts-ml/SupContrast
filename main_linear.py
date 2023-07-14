@@ -232,7 +232,7 @@ def cache_outputs(val_loader, model, classifier, opt):
     classifier.eval()
     # caches for outputs
     embeds = torch.empty((0, 2048))
-    preds = torch.empty((0,))
+    preds = torch.empty((0, opt.n_cls))
     labels = torch.empty((0,))
     with torch.no_grad():
         for b_images, b_labels in val_loader:
@@ -243,7 +243,7 @@ def cache_outputs(val_loader, model, classifier, opt):
             b_preds = classifier(b_embeds)
             # cache
             embeds = torch.vstack((embeds, b_embeds.cpu()))
-            preds = torch.hstack((preds, b_preds.cpu()))
+            preds = torch.vstack((preds, b_preds.cpu()))
             labels = torch.hstack((labels, b_labels.cpu()))
     # save caches
     torch.save(embeds, os.path.join(opt.save_folder, "embeds.pth"))
