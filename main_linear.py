@@ -5,7 +5,6 @@ import argparse
 import time
 import math
 import os
-from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -69,7 +68,7 @@ def parse_option():
 
     opt.model_name = '{}_lr_{}_bsz_{}_{}'.\
         format(opt.dataset, opt.learning_rate, opt.batch_size,
-               Path(opt.ckpt).stem)
+               "new" if "new" in opt.ckpt else "old")
 
     if opt.cosine:
         opt.model_name = '{}_cosine'.format(opt.model_name)
