@@ -242,9 +242,9 @@ def cache_outputs(val_loader, model, classifier, opt):
             b_embeds = model.encoder(b_images)
             b_preds = classifier(b_embeds)
             # cache
-            embeds = torch.vstack((embeds, b_embeds))
-            preds = torch.hstack((preds, b_preds))
-            labels = torch.hstack((labels, b_labels))
+            embeds = torch.vstack((embeds, b_embeds.cpu()))
+            preds = torch.hstack((preds, b_preds.cpu()))
+            labels = torch.hstack((labels, b_labels.cpu()))
     # save caches
     torch.save(embeds, os.path.join(opt.save_folder, "embeds.pth"))
     torch.save(preds, os.path.join(opt.save_folder, "preds.pth"))
