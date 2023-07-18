@@ -44,14 +44,14 @@ def bootstrap_dif(b_scores_1, b_scores_2):
         b_scores_1 (Tensor): Bootstrapped metric outputs, with same seed as 2
         b_scores_2 (Tensor): Bootstrapped metric outputs, with same seed as 1
     Returns:
-        bool: True if 95% CI does not contain 0 so result is statistically significant
-              False if 95% CI contains 0 so result is not statistically significant
+        tensor: True if 95% CI does not contain 0 so result is statistically significant
+                False if 95% CI contains 0 so result is not statistically significant
     """
     dif_scores = b_scores_1 - b_scores_2
     # compute confidence interval of the difference
     ci_low = torch.quantile(dif_scores, 2.5, dim=0)
     ci_high = torch.quantile(dif_scores, 97.5, dim=0)
-    return bool(ci_low <= 0 and ci_high >= 0)
+    return ci_low <= 0 and ci_high >= 0
 
 
 if __name__ == "__main__":
@@ -60,13 +60,29 @@ if __name__ == "__main__":
 
     from util import accuracy
 
-    out_folders = [Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
+    b_scores_cache = []
     metric = partial(accuracy, topk=(1, 5))
+    # out_folders should have pairs of models to compare
+    out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
+    # print bootstrapped accuracy CIs
     for out_folder in out_folders:
         y_pred = torch.load(out_folder / "preds.pth")
         y_true = torch.load(out_folder / "labels.pth")
         print(out_folder)
         print("Means, 95% CI Low, 95% CI High")
-        print(bootstrap_metric(y_pred, y_true, metric))
+        metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(y_pred, y_true, metric)
+        b_scores_cache.append(b_scores)
+        print(metric_mean, ci_low, ci_high)
+        print()
+    # print accuracy difference for each pair of models
+    for i in range(len(out_folders) // 2):
+        i1 = 2 * i
+        i2 = 2 * i + 1
+        print("Accuracy Difference 95% CI for:")
+        print(out_folders[i1])
+        print(out_folders[i2])
+        print(bootstrap_dif(b_scores_cache[i1], b_scores_cache[i2]))
         print()
