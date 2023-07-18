@@ -17,23 +17,41 @@ def bootstrap_metric(y_pred, y_true, metric_func,
         tuple: metric_mean: Tensor with bootstrapped mean of metric
                ci_low: Low value from 95% confidence interval
                ci_high: High value from 95% confidence interval
+               b_scores: Bootstrapped metric outputs
     """
-    bootstrapped_scores = None
+    b_scores = None
     rng = torch.random.manual_seed(rng_seed)
     # bootstrap
     for _ in range(n_bootstraps):
         sample_idx = torch.randint(y_pred.shape[0], size=(y_pred.shape[0],), generator=rng)
         score = torch.Tensor(metric_func(y_pred[sample_idx], y_true[sample_idx]))
         # store results from each run along axis 0, with other axes' shape determined by metric
-        if bootstrapped_scores is None:
-            bootstrapped_scores = score.unsqueeze(0)
+        if b_scores is None:
+            b_scores = score.unsqueeze(0)
         else:
-            bootstrapped_scores = torch.vstack((bootstrapped_scores, score))
+            b_scores = torch.vstack((b_scores, score))
     # compute mean and confidence interval
-    metric_mean = torch.mean(bootstrapped_scores, dim=0)
-    ci_low = torch.quantile(bootstrapped_scores, 0.025, dim=0)
-    ci_high = torch.quantile(bootstrapped_scores, 0.975, dim=0)
-    return (metric_mean, ci_low, ci_high)
+    metric_mean = torch.mean(b_scores, dim=0)
+    ci_low = torch.quantile(b_scores, 0.025, dim=0)
+    ci_high = torch.quantile(b_scores, 0.975, dim=0)
+    return (metric_mean, ci_low, ci_high, b_scores)
+
+
+def bootstrap_dif(b_scores_1, b_scores_2):
+    """Examine the difference of two bootstrapped metrics
+
+    Args:
+        b_scores_1 (Tensor): Bootstrapped metric outputs, with same seed as 2
+        b_scores_2 (Tensor): Bootstrapped metric outputs, with same seed as 1
+    Returns:
+        bool: True if 95% CI does not contain 0 so result is statistically significant
+              False if 95% CI contains 0 so result is not statistically significant
+    """
+    dif_scores = b_scores_1 - b_scores_2
+    # compute confidence interval of the difference
+    ci_low = torch.quantile(dif_scores, 2.5, dim=0)
+    ci_high = torch.quantile(dif_scores, 97.5, dim=0)
+    return bool(ci_low <= 0 and ci_high >= 0)
 
 
 if __name__ == "__main__":
