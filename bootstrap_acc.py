@@ -51,7 +51,7 @@ def bootstrap_dif(b_scores_1, b_scores_2):
     # compute confidence interval of the difference
     ci_low = torch.quantile(dif_scores, 0.025, dim=0)
     ci_high = torch.quantile(dif_scores, 0.975, dim=0)
-    return ci_low <= 0 and ci_high >= 0
+    return ~torch.logical_and(ci_low <= 0, ci_high >= 0)
 
 
 if __name__ == "__main__":
