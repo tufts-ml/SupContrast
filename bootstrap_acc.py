@@ -2,7 +2,7 @@ import torch
 
 
 def bootstrap_metric(y_pred, y_true, metric_func,
-                     n_bootstraps=200, rng_seed=123):
+                     n_bootstraps=1000, rng_seed=123):
     """Compute test set boostrapping of a metric
     Args:
         y_pred (tensor): Model predictions for some output y
@@ -31,8 +31,8 @@ def bootstrap_metric(y_pred, y_true, metric_func,
             bootstrapped_scores = torch.vstack((bootstrapped_scores, score))
     # compute mean and confidence interval
     metric_mean = torch.mean(bootstrapped_scores, dim=0)
-    ci_low = torch.quantile(bootstrapped_scores, 2.5, dim=0)
-    ci_high = torch.quantile(bootstrapped_scores, 97.5, dim=0)
+    ci_low = torch.quantile(bootstrapped_scores, 0.025, dim=0)
+    ci_high = torch.quantile(bootstrapped_scores, 0.975, dim=0)
     return (metric_mean, ci_low, ci_high)
 
 
@@ -42,9 +42,13 @@ if __name__ == "__main__":
 
     from util import accuracy
 
-    out_folders = [Path("")]
+    out_folders = [Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
     metric = partial(accuracy, topk=(1, 5))
     for out_folder in out_folders:
-        y_pred = torch.load()
-        y_true = torch.load()
+        y_pred = torch.load(out_folder / "preds.pth")
+        y_true = torch.load(out_folder / "labels.pth")
+        print(out_folder)
+        print("Means, 95% CI Low, 95% CI High")
         print(bootstrap_metric(y_pred, y_true, metric))
+        print()
