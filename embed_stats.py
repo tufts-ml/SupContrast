@@ -9,7 +9,7 @@ def cos_dist_per_class(embeds, labels):
         cos_dist_mat = cosine_similarity(l_embeds.unsqueeze(0), l_embeds.unsqueeze(1), dim=2)
         # remove diagonal and average
         cos_dist = torch.mean(cos_dist_mat[~torch.eye(cos_dist_mat.shape[0], dtype=bool)])
-        cos_dists = cos_dists.hstack((cos_dists, cos_dist))
+        cos_dists = torch.hstack((cos_dists, cos_dist))
     return cos_dists
 
 
