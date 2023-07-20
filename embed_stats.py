@@ -1,3 +1,4 @@
+from sklearn import metrics
 import torch
 from torch.nn.functional import cosine_similarity
 
@@ -32,6 +33,15 @@ def cos_sim_conf_mat(embeds, labels):
     return conf_mat
 
 
+def plot_conf_mat(conf_mat, labels):
+    labels = [str(i) for i in range(len(torch.unique(labels)))]
+    disp = metrics.ConfusionMatrixDisplay(
+        conf_mat,
+        display_labels=labels)
+    disp = disp.plot(cmap="Blues", values_format=".0f")
+    return disp.figure_
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -39,10 +49,14 @@ if __name__ == "__main__":
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
+    fig_folder = Path("figures/confusion")
+    fig_folder.mkdir(exist_ok=True)
     # calculate embedding statistics
     for out_folder in out_folders:
         embeds = torch.load(out_folder / "embeds.pth")
         labels = torch.load(out_folder / "labels.pth")
         print(out_folder)
-        print(cos_sim_conf_mat(embeds, labels))
+        conf_mat = cos_sim_conf_mat(embeds, labels)
+        print(conf_mat)
+        plot_conf_mat(conf_mat, labels).savefig(fig_folder / out_folder.stem / ".png")
         print()
