@@ -36,7 +36,8 @@ def cos_sim_conf_mat(embeds, labels):
 
 def plot_conf_mat(conf_mat):
     fig, ax = plt.subplots()
-    ax = sns.heatmap(conf_mat, vmin=0, vmax=1, cmap="Blues", annot=True, fmt=".2f", ax=ax)
+    ax = sns.heatmap(conf_mat, vmin=0, vmax=1, cmap="Blues", annot=True, fmt=".2f", square=True,
+                     ax=ax)
     return fig
 
 
