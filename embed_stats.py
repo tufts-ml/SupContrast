@@ -38,7 +38,9 @@ def plot_conf_mat(conf_mat, labels):
     disp = metrics.ConfusionMatrixDisplay(
         conf_mat,
         display_labels=labels)
-    disp = disp.plot(cmap="Blues", values_format=".0f")
+    disp = disp.plot(cmap="Blues", values_format=".2f")
+    # set colormap to have rnage [0, 1]
+    disp.im_.set_clim(0, 1)
     return disp.figure_
 
 
@@ -56,7 +58,11 @@ if __name__ == "__main__":
         embeds = torch.load(out_folder / "embeds.pth")
         labels = torch.load(out_folder / "labels.pth")
         print(out_folder)
-        conf_mat = cos_sim_conf_mat(embeds, labels)
+        if not (out_folder / "conf_mat.pth").exists():
+            conf_mat = cos_sim_conf_mat(embeds, labels)
+            torch.save(conf_mat, out_folder / "conf_mat.pth")
+        else:
+            conf_mat = torch.load(out_folder / "conf_mat.pth")
         print(conf_mat)
-        plot_conf_mat(conf_mat, labels).savefig(fig_folder / out_folder.stem / ".png")
+        plot_conf_mat(conf_mat, labels).savefig(fig_folder / (out_folder.name + ".png"))
         print()
