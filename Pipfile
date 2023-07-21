@@ -25,6 +25,7 @@ flake8 = "*"
 pep8-naming = "*"
 pytest = "*"
 tensorflow = "*"
+seaborn = "*"
 
 [torch_cpu]
 torch = {index="pytorch_cpu"}
