@@ -34,10 +34,10 @@ def cos_sim_conf_mat(embeds, labels):
     return conf_mat
 
 
-def plot_conf_mat(conf_mat):
+def plot_conf_mat(conf_mat, labels="auto"):
     fig, ax = plt.subplots()
     ax = sns.heatmap(conf_mat, vmin=0, vmax=1, cmap="Blues", annot=True, fmt=".2f", square=True,
-                     ax=ax)
+                     ax=ax, xticklabels=labels, yticklabels=labels)
     return fig
 
 
@@ -48,6 +48,8 @@ if __name__ == "__main__":
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/")]
     fig_folder = Path("figures/confusion")
     fig_folder.mkdir(exist_ok=True)
+    # CIFAR10 labels
+    labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
@@ -59,5 +61,5 @@ if __name__ == "__main__":
         else:
             conf_mat = torch.load(out_folder / "conf_mat.pth")
         print(conf_mat)
-        plot_conf_mat(conf_mat).savefig(fig_folder / (out_folder.name + ".png"))
+        plot_conf_mat(conf_mat, labels).savefig(fig_folder / (out_folder.name + ".png"))
         print()
