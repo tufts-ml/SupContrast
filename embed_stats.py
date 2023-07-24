@@ -56,17 +56,16 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
     for label in range(n_labels):
         # get similarities from target distribution
         target_mask = labels == label
-        target_sim = pair_mat[target_mask, target_mask]
+        target_sim = pair_mat[target_mask][:, target_mask]
         # remove diagonal entries and flatten
         target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
         # get similarities from noise distribution
-        noise_sim = pair_mat[target_mask, ~target_mask].flatten()
+        noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
         # plot histogram and save
         fig, ax = plt.subplots()
         sns.histplot(
             x=torch.hstack((target_sim, noise_sim)),
-            hue=torch.hstack((torch.full(target_sim.shape, class_labels[label]),
-                              torch.full(noise_sim.shape, "noise"))),
+            hue=[class_labels[label]] * len(target_sim) + ["noise"] * len(noise_sim),
             ax=ax, element="step", stat="density", common_norm=False)
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label] + ".png"))
 
