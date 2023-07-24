@@ -51,7 +51,7 @@ def pair_sim_mat(embeds):
     return pair_mat
 
 
-def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
+def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
     n_labels = len(torch.unique(labels))
     for label in range(n_labels):
         # get similarities from target distribution
@@ -68,7 +68,7 @@ def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
             hue=torch.hstack((torch.full(target_sim.shape, class_labels[label]),
                               torch.full(noise_sim.shape, "noise"))),
             ax=ax, element="step", stat="density", common_norm=False)
-        fig.savefig(out_folder / (class_labels[label] + ".png"))
+        fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label] + ".png"))
 
 
 if __name__ == "__main__":
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         labels = torch.load(out_folder / "labels.pth")
         fig_folder = Path("figures/hist")
         fig_folder.mkdir(exist_ok=True)
-        pair_sim_hist(pair_mat, labels, class_labels, fig_folder)
+        pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder)
         # cosine similarity confusion matrix
         if not (out_folder / "conf_mat.pth").exists():
             embeds = torch.load(out_folder / "embeds.pth")
