@@ -41,6 +41,16 @@ def plot_conf_mat(conf_mat, labels="auto"):
     return fig
 
 
+def pair_sim_mat(embeds):
+    n_embeds = embeds.shape[0]
+    pair_mat = torch.empty((n_embeds, n_embeds))
+    # break up computation for each image for less memory usage
+    for i in range(n_embeds):
+        cur_pairs = cosine_similarity(embeds[i], embeds, dim=1)
+        pair_mat[i] = cur_pairs
+    return pair_mat
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -53,6 +63,11 @@ if __name__ == "__main__":
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
+        # cosine similarity pair matrix
+        if not (out_folder / "pair_mat.pth").exists():
+            embeds = torch.load(out_folder / "embeds.pth")
+            torch.save(pair_sim_mat(embeds), out_folder / "pair_mat.pth")
+        # cosine similarity confusion matrix
         if not (out_folder / "conf_mat.pth").exists():
             embeds = torch.load(out_folder / "embeds.pth")
             labels = torch.load(out_folder / "labels.pth")
