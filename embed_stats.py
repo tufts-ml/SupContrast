@@ -49,7 +49,7 @@ if __name__ == "__main__":
     fig_folder = Path("figures/confusion")
     fig_folder.mkdir(exist_ok=True)
     # CIFAR10 labels
-    labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    class_labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
@@ -61,5 +61,5 @@ if __name__ == "__main__":
         else:
             conf_mat = torch.load(out_folder / "conf_mat.pth")
         print(conf_mat)
-        plot_conf_mat(conf_mat, labels).savefig(fig_folder / (out_folder.name + ".png"))
+        plot_conf_mat(conf_mat, class_labels).savefig(fig_folder / (out_folder.name + ".png"))
         print()
