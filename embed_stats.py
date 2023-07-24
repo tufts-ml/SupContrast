@@ -51,13 +51,31 @@ def pair_sim_mat(embeds):
     return pair_mat
 
 
+def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
+    n_labels = len(torch.unique(labels))
+    for label in range(n_labels):
+        # get similarities from target distribution
+        target_mask = labels == label
+        target_sim = pair_mat[target_mask, target_mask]
+        # remove diagonal entries and flatten
+        target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
+        # get similarities from noise distribution
+        noise_sim = pair_mat[target_mask, ~target_mask].flatten()
+        # plot histogram and save
+        fig, ax = plt.subplots()
+        sns.histplot(
+            x=torch.hstack((target_sim, noise_sim)),
+            hue=torch.hstack((torch.full(target_sim.shape, class_labels[label]),
+                              torch.full(noise_sim.shape, "noise"))),
+            ax=ax, element="step", stat="density", common_norm=False)
+        fig.savefig(out_folder / (class_labels[label] + ".png"))
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
     out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/")]
-    fig_folder = Path("figures/confusion")
-    fig_folder.mkdir(exist_ok=True)
     # CIFAR10 labels
     class_labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
     # calculate embedding statistics
@@ -66,15 +84,23 @@ if __name__ == "__main__":
         # cosine similarity pair matrix
         if not (out_folder / "pair_mat.pth").exists():
             embeds = torch.load(out_folder / "embeds.pth")
-            torch.save(pair_sim_mat(embeds), out_folder / "pair_mat.pth")
+            pair_mat = pair_sim_mat(embeds)
+            torch.save(pair_mat, out_folder / "pair_mat.pth")
+        else:
+            pair_mat = torch.load(out_folder / "pair_mat.pth")
+        labels = torch.load(out_folder / "labels.pth")
+        fig_folder = Path("figures/hist")
+        fig_folder.mkdir(exist_ok=True)
+        pair_sim_hist(pair_mat, labels, class_labels, fig_folder)
         # cosine similarity confusion matrix
         if not (out_folder / "conf_mat.pth").exists():
             embeds = torch.load(out_folder / "embeds.pth")
-            labels = torch.load(out_folder / "labels.pth")
             conf_mat = cos_sim_conf_mat(embeds, labels)
             torch.save(conf_mat, out_folder / "conf_mat.pth")
         else:
             conf_mat = torch.load(out_folder / "conf_mat.pth")
         print(conf_mat)
+        fig_folder = Path("figures/confusion")
+        fig_folder.mkdir(exist_ok=True)
         plot_conf_mat(conf_mat, class_labels).savefig(fig_folder / (out_folder.name + ".png"))
         print()
