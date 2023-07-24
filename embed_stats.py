@@ -67,6 +67,7 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
             x=torch.hstack((target_sim, noise_sim)),
             hue=[class_labels[label]] * len(target_sim) + ["noise"] * len(noise_sim),
             ax=ax, binrange=[0, 1], bins=100, element="step", stat="proportion", common_norm=False)
+        ax.set_ylim(0, .9)
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label] + ".png"))
 
 
