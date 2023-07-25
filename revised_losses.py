@@ -8,7 +8,7 @@ class SINCERELoss(nn.Module):
         self.temperature = temperature
 
     def forward(self, embeds: torch.tensor, labels: torch.tensor):
-        """Supervised InfoNCE loss with cosine distance
+        """Supervised InfoNCE REvisited loss with cosine distance
 
         Args:
             embeds (torch.Tensor): (B, D) embeddings of B images normalized over D dimension.
