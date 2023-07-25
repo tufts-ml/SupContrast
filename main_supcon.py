@@ -16,7 +16,7 @@ from util import adjust_learning_rate, warmup_learning_rate
 from util import set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
-from revised_losses import MultiviewSINCELoss, InfoNCELoss
+from revised_losses import MultiviewSINCERELoss, InfoNCELoss
 
 
 def parse_option():
@@ -183,7 +183,7 @@ def set_model(opt):
         criterion = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
     else:
         if opt.method == 'SupCon':
-            criterion = MultiviewSINCELoss(temperature=opt.temp)
+            criterion = MultiviewSINCERELoss(temperature=opt.temp)
         elif opt.method == 'SimCLR':
             criterion = InfoNCELoss(temperature=opt.temp)
 

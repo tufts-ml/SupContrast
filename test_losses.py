@@ -39,7 +39,7 @@ def test_sup():
     embeds, labels = spoof_sup_embeds()
     # use default "all" contrast mode, which computes loss for all views instead of single view
     old_loss = losses.SupConLoss()
-    new_loss = revised_losses.MultiviewSINCELoss()
+    new_loss = revised_losses.MultiviewSINCERELoss()
     old_val = old_loss(embeds, labels)
     new_val = new_loss(embeds, labels)
     # new loss always strictly less than old loss due to the correction of the softmax denominator

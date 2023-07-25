@@ -9,7 +9,7 @@ from test_losses import spoof_sup_embeds
 if __name__ == "__main__":
     embeds, labels = spoof_sup_embeds(8, 8, 64)
     old_loss = losses.SupConLoss()
-    new_loss = revised_losses.MultiviewSINCELoss()
+    new_loss = revised_losses.MultiviewSINCERELoss()
 
     # computation time spent on max, exp, and matmul
     cProfile.run("old_loss(embeds, labels)", sort="cumtime")

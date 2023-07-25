@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 
 
-class SINCELoss(nn.Module):
+class SINCERELoss(nn.Module):
     def __init__(self, temperature=0.07) -> None:
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, embeds, labels: torch.tensor):
+    def forward(self, embeds: torch.tensor, labels: torch.tensor):
         """Supervised InfoNCE loss with cosine distance
 
         Args:
@@ -56,7 +56,7 @@ class SINCELoss(nn.Module):
         return loss
 
 
-class MultiviewSINCELoss(SINCELoss):
+class MultiviewSINCERELoss(SINCERELoss):
     def __init__(self, temperature=0.07) -> None:
         super().__init__(temperature)
 
@@ -78,7 +78,7 @@ class MultiviewSINCELoss(SINCELoss):
         return super().forward(reshaped_embeds, labels)
 
 
-class InfoNCELoss(SINCELoss):
+class InfoNCELoss(SINCERELoss):
     def __init__(self, temperature=0.07) -> None:
         super().__init__(temperature)
 
