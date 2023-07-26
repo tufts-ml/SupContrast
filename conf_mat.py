@@ -18,4 +18,4 @@ if __name__ == "__main__":
         labels = torch.load(out_folder / "labels.pth")
         disp = ConfusionMatrixDisplay.from_predictions(
             labels, preds, display_labels=class_labels, cmap="Blues")
-        disp.figure_.savefig(fig_folder / (out_folder.name + ".png"))
+        disp.figure_.savefig(fig_folder / (out_folder.name + ".pdf"))
