@@ -10,7 +10,7 @@ if __name__ == "__main__":
     fig_folder = Path("figures/confusion_acc")
     fig_folder.mkdir(exist_ok=True)
     # CIFAR10 labels
-    class_labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    class_labels = ('Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)

@@ -65,8 +65,11 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
         fig, ax = plt.subplots()
         sns.histplot(
             x=torch.hstack((target_sim, noise_sim)),
-            hue=[class_labels[label]] * len(target_sim) + ["noise"] * len(noise_sim),
-            ax=ax, binrange=[0, 1], bins=100, element="step", stat="proportion", common_norm=False)
+            hue=[class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
+            ax=ax, binrange=[0, 1], bin_width=1/100, element="step", stat="proportion",
+            common_norm=False)
+        ax.set_xlabel("Cosine Similarity")
+        ax.set_ylabel("Test Set Proportion")
         ax.set_ylim(0, .09)
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label] + ".png"))
         plt.close()
@@ -78,7 +81,7 @@ if __name__ == "__main__":
     out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/")]
     # CIFAR10 labels
-    class_labels = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+    class_labels = ('Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
