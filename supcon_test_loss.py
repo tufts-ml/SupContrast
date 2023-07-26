@@ -21,6 +21,8 @@ def parse_option():
 
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
+    parser.add_argument('--ckpt', type=str, default='',
+                        help='path to pre-trained model')
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'path'], help='dataset')
     parser.add_argument('--mean', type=str,
@@ -33,14 +35,20 @@ def parse_option():
     # method
     parser.add_argument('--method', type=str, default='SupCon',
                         choices=['SupCon', 'SimCLR'], help='choose method')
-    parser.add_argument('--implementation', type=str, default='old',
-                        choices=['old', 'new'], help='loss implemenation version')
 
     # temperature
-    parser.add_argument('--temp', type=float, default=0.07,
+    parser.add_argument('--temp', type=float, default=0.1,
                         help='temperature for loss function')
 
     opt = parser.parse_args()
+
+    # get implementation from checkpoint
+    if "new" in opt.ckpt and "old" not in opt.ckpt:
+        opt.implementation = "new"
+    elif "new" not in opt.ckpt and "old" in opt.ckpt:
+        opt.implementation = "old"
+    else:
+        raise Exception("Error determining implementation from checkpoint")
 
     # check if dataset is path that passed required arguments
     if opt.dataset == 'path':
@@ -130,15 +138,7 @@ def main(opt):
 
 
 if __name__ == '__main__':
-    models = [
-        "save/SupCon/cifar10_models/SupCon_new_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm/last.pth",
-        "save/SupCon/cifar10_models/SupCon_old_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm/last.pth",
-        "save/SupCon/cifar100_models/SupCon_new_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm/last.pth",
-        "save/SupCon/cifar100_models/SupCon_old_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm/last.pth"
-    ]
-    for model in models:
-        print(model)
-        opt = parse_option()
-        opt.ckpt = model
-        av_loss = main(opt)
-        print(f"Average Test Loss:{av_loss}\n")
+    opt = parse_option()
+    print(opt.ckpt)
+    av_loss = main(opt)
+    print(f"Average Test Loss:{av_loss}\n")
