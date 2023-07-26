@@ -16,5 +16,6 @@ if __name__ == "__main__":
         print(out_folder)
         preds = torch.argmax(torch.load(out_folder / "preds.pth"), dim=1)
         labels = torch.load(out_folder / "labels.pth")
-        ConfusionMatrixDisplay.from_predictions(labels, preds, display_labels=class_labels)\
-            .figure_.savefig(fig_folder / (out_folder.name + ".png"))
+        disp = ConfusionMatrixDisplay.from_predictions(
+            labels, preds, display_labels=class_labels, cmap="Blues")
+        disp.figure_.savefig(fig_folder / (out_folder.name + ".png"))
