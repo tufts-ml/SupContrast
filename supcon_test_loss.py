@@ -8,7 +8,7 @@ from torchvision import transforms, datasets
 from main_linear import set_model
 from losses import SupConLoss
 from revised_losses import MultiviewSINCERELoss, InfoNCELoss
-from util import AverageMeter
+from util import AverageMeter, TwoCropTransform
 
 
 def parse_option():
@@ -74,11 +74,11 @@ def set_loader(opt):
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
     normalize = transforms.Normalize(mean=mean, std=std)
 
-    test_transform = transforms.Compose([
+    test_transform = TwoCropTransform(transforms.Compose([
         transforms.RandomResizedCrop(size=32, scale=(0.8, 1.)),
         transforms.ToTensor(),
         normalize,
-    ])
+    ]))
 
     if opt.dataset == 'cifar10':
         test_dataset = datasets.CIFAR10(root=opt.data_folder,
@@ -116,14 +116,16 @@ def test(test_loader, model, criterion, opt):
             loss = criterion(features, labels)
 
             # update metric
+            print(loss.item())
             losses.update(loss.item(), bsz)
     return losses.avg
 
 
 def main(opt):
     # build data loader
-    _, test_loader = set_loader(opt)
+    test_loader = set_loader(opt)
     # build model and criterion
+    opt.n_cls = 5  # dummy value since classifier is not used
     model, _, _ = set_model(opt)
     if opt.implementation == 'old':
         # original implementation does not set base_temperature, but setting here to make
