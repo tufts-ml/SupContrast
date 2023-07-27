@@ -21,8 +21,8 @@ def cos_sim_conf_mat(embeds, labels):
     for i in range(n_labels):
         for j in range(i, n_labels):
             # compute cosine similarities between pairs from classes i and j
-            i_embeds = embeds[labels == labels[i]].unsqueeze(0)
-            j_embeds = embeds[labels == labels[j]].unsqueeze(1)
+            i_embeds = embeds[labels == i].unsqueeze(0)
+            j_embeds = embeds[labels == j].unsqueeze(1)
             conf_entries = cosine_similarity(i_embeds, j_embeds, dim=2)
             if i == j:
                 # remove diagonal entries
