@@ -107,5 +107,7 @@ if __name__ == "__main__":
         print(conf_mat)
         fig_folder = Path("figures/confusion")
         fig_folder.mkdir(exist_ok=True)
-        plot_conf_mat(conf_mat, class_labels).savefig(fig_folder / (out_folder.name + ".pdf"))
+        fig = plot_conf_mat(conf_mat, class_labels)
+        plt.title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
+        fig.savefig(fig_folder / (out_folder.name + ".pdf"))
         print()
