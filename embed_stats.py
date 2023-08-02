@@ -97,7 +97,7 @@ def expected_bound(pair_mat, labels, temp=0.1):
             torch.vstack((log_numer, torch.full_like(log_numer, log_base_denom))), dim=0)
         mean_bound += (torch.log(torch.sum(~same_label) + 1) + torch.mean(log_numer - log_denom))\
             / n_embeds
-    return mean_bound
+    return mean_bound.item()
 
 
 if __name__ == "__main__":
