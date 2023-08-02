@@ -76,6 +76,30 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
         plt.close()
 
 
+def expected_bound(pair_mat, labels, temp=0.1):
+    # apply temperature to cosine similarities
+    pair_mat /= temp
+
+    n_embeds = pair_mat.shape[0]
+    mean_bound = 0
+    # break up computation for each image for less memory usage
+    for i in range(n_embeds):
+        # separate out numerator terms and terms with other labels
+        same_label = labels == labels[i]
+        in_numer = same_label
+        in_numer[i] = False
+        # vector of all numerator terms
+        log_numer = pair_mat[in_numer]
+        # common terms for denominator
+        log_base_denom = torch.logsumexp(pair_mat[i][~same_label])
+        # denominator with term from numerator
+        log_denom = torch.logsumexp(
+            torch.vstack((log_numer, torch.full_like(log_numer, log_base_denom))), dim=0)
+        mean_bound += (torch.log(torch.sum(~same_label) + 1) + torch.mean(log_numer - log_denom))\
+            / n_embeds
+    return mean_bound
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -94,6 +118,9 @@ if __name__ == "__main__":
         else:
             pair_mat = torch.load(out_folder / "pair_mat.pth")
         labels = torch.load(out_folder / "labels.pth")
+        # bound expectation
+        print(f"Expectation of Bound: {expected_bound(pair_mat, labels)}")
+        # paired similarity histogram
         fig_folder = Path("figures/hist")
         fig_folder.mkdir(exist_ok=True)
         pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder)
