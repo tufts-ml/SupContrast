@@ -89,12 +89,13 @@ def expected_bound(pair_mat, labels, temp=0.1):
         in_numer = same_label
         in_numer[i] = False
         # vector of all numerator terms
-        log_numer = pair_mat[in_numer]
+        log_numer = pair_mat[i][in_numer]
         # common terms for denominator
-        log_base_denom = torch.logsumexp(pair_mat[i][~same_label])
+        log_base_denom = torch.logsumexp(pair_mat[i][~same_label], dim=0)
         # denominator with term from numerator
         log_denom = torch.logsumexp(
             torch.vstack((log_numer, torch.full_like(log_numer, log_base_denom))), dim=0)
+        # bound for current image
         mean_bound += (torch.log(torch.sum(~same_label) + 1) + torch.mean(log_numer - log_denom))\
             / n_embeds
     return mean_bound.item()
@@ -104,7 +105,9 @@ if __name__ == "__main__":
     from pathlib import Path
 
     out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/")]
+                   Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),]
     # CIFAR10 labels
     class_labels = ('Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
     # calculate embedding statistics
@@ -120,6 +123,8 @@ if __name__ == "__main__":
         labels = torch.load(out_folder / "labels.pth")
         # bound expectation
         print(f"Expectation of Bound: {expected_bound(pair_mat, labels)}")
+        if "cifar100" in out_folder.name:
+            continue
         # paired similarity histogram
         fig_folder = Path("figures/hist")
         fig_folder.mkdir(exist_ok=True)
