@@ -36,8 +36,8 @@ def cos_sim_conf_mat(embeds, labels):
 
 def plot_conf_mat(conf_mat, labels="auto"):
     fig, ax = plt.subplots()
-    ax = sns.heatmap(conf_mat, vmin=0, vmax=1, cmap="Blues", annot=True, fmt=".2f", square=True,
-                     ax=ax, xticklabels=labels, yticklabels=labels)
+    ax = sns.heatmap(conf_mat, vmin=0.25, vmax=0.85, cmap="Blues", annot=True, fmt=".2f",
+                     square=True, ax=ax, xticklabels=labels, yticklabels=labels)
     return fig
 
 
@@ -66,11 +66,11 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
         sns.histplot(
             x=torch.hstack((target_sim, noise_sim)),
             hue=[class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
-            ax=ax, binrange=[0, 1], binwidth=1/100, element="step", stat="proportion",
+            ax=ax, binrange=[0.15, 1], binwidth=1/100, element="step", stat="proportion",
             common_bins=True, common_norm=False)
         ax.set_xlabel("Cosine Similarity")
         ax.set_ylabel("Test Set Proportion")
-        ax.set_ylim(0, .09)
+        ax.set_ylim(0, .085)
         ax.set_title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
         plt.close()
