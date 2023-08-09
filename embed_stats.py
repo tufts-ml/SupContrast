@@ -141,5 +141,5 @@ if __name__ == "__main__":
         fig_folder.mkdir(exist_ok=True)
         fig = plot_conf_mat(conf_mat, class_labels)
         plt.title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
-        fig.savefig(fig_folder / (out_folder.name + ".pdf"))
+        fig.savefig(fig_folder / (out_folder.name + ".pdf"), bbox_inches='tight')
         print()

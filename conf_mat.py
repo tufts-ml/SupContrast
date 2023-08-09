@@ -20,4 +20,4 @@ if __name__ == "__main__":
         disp = ConfusionMatrixDisplay.from_predictions(
             labels, preds, display_labels=class_labels, cmap="Blues")
         plt.title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
-        disp.figure_.savefig(fig_folder / (out_folder.name + ".pdf"))
+        disp.figure_.savefig(fig_folder / (out_folder.name + ".pdf"), bbox_inches='tight')
