@@ -31,7 +31,7 @@ The baseline SupCon loss can be used by using `--implementation old` instead of 
  
 ### SINCERE Pretraining Stage:
 ```
-python main_supcon.py --batch_size 512 \
+pipenv run python main_supcon.py --batch_size 512 \
   --learning_rate 0.5 \
   --temp 0.1 \
   --cosine \
@@ -40,7 +40,7 @@ python main_supcon.py --batch_size 512 \
 
 ### Cross-Entropy Linear Finetuning Stage:
 ```
-python main_linear.py --batch_size 512 \
+pipenv run python main_linear.py --batch_size 512 \
   --learning_rate 5 \
   --ckpt /path/to/model.pth
 ```
