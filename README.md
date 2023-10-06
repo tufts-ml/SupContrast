@@ -3,7 +3,7 @@
   <img src="figures/teaser.png" width="700">
 </p>
 
-This repo covers an reference implementation of the SINCERE loss in Pytorch for training on CIFAR-10 and CIFAR-100.
+This repo covers a reference implementation of the SINCERE loss in Pytorch for training on CIFAR-10 and CIFAR-100.
 
 ## Loss Function
 Three loss functions are provided in `revised_losses.py`:
