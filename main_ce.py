@@ -133,6 +133,7 @@ def set_loader(opt):
     ])
 
     val_transform = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
         normalize,
     ])
