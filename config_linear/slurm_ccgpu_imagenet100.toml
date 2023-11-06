@@ -1,4 +1,4 @@
-launch_cmd = "cd ~/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
+launch_cmd = "cd ~/SupContrast; nvidia-smi; pipenv run python main_linear.py"
 
 [sbatch]
 -p = "ccgpu,gpu"
