@@ -46,7 +46,8 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100'], help='dataset')
+                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet'],
+                        help='dataset')
 
     # other setting
     parser.add_argument('--cosine', action='store_true',
@@ -61,6 +62,8 @@ def parse_option():
     # set the path according to the environment
     if opt.dataset == 'imagenet100':
         opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet100/train/'
+    elif opt.dataset == 'imagenet':
+        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet/train/'
     else:
         opt.data_folder = './datasets/'
     opt.model_path = './save/SupCon/{}_models'.format(opt.dataset)
@@ -118,7 +121,7 @@ def set_loader(opt):
     elif opt.dataset == 'cifar100':
         mean = (0.5071, 0.4867, 0.4408)
         std = (0.2675, 0.2565, 0.2761)
-    elif opt.dataset == 'imagenet100':
+    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
     else:
@@ -152,7 +155,7 @@ def set_loader(opt):
         val_dataset = datasets.CIFAR100(root=opt.data_folder,
                                         train=False,
                                         transform=val_transform)
-    elif opt.dataset == 'imagenet100':
+    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         train_dataset = datasets.ImageFolder(root=opt.data_folder,
                                              transform=train_transform)
         val_dataset = datasets.ImageFolder(root=opt.data_folder + "../val/",

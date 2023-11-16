@@ -48,7 +48,8 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100', 'path'], help='dataset')
+                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'path'],
+                        help='dataset')
     parser.add_argument('--mean', type=str,
                         help='mean of dataset in path in form of str tuple')
     parser.add_argument('--std', type=str,
@@ -88,6 +89,8 @@ def parse_option():
     if opt.data_folder is None:
         if opt.dataset == 'imagenet100':
             opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet100/train/'
+        elif opt.dataset == 'imagenet':
+            opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet/train/'
         else:
             opt.data_folder = './datasets/'
     opt.model_path = './save/SupCon/{}_models'.format(opt.dataset)
@@ -136,7 +139,7 @@ def set_loader(opt):
     elif opt.dataset == 'cifar100':
         mean = (0.5071, 0.4867, 0.4408)
         std = (0.2675, 0.2565, 0.2761)
-    elif opt.dataset == 'imagenet100':
+    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
     elif opt.dataset == 'path':
@@ -167,7 +170,7 @@ def set_loader(opt):
                                           transform=TwoCropTransform(
                                               train_transform),
                                           download=True)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'path':
+    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet' or opt.dataset == 'path':
         train_dataset = datasets.ImageFolder(root=opt.data_folder,
                                              transform=TwoCropTransform(train_transform))
     else:
