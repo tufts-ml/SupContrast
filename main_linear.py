@@ -45,7 +45,8 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100'], help='dataset')
+                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet'],
+                        help='dataset')
 
     # other setting
     parser.add_argument('--cosine', action='store_true',
@@ -59,7 +60,12 @@ def parse_option():
     opt = parser.parse_args()
 
     # set the path according to the environment
-    opt.data_folder = './datasets/'
+    if opt.dataset == 'imagenet100':
+        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet100/train/'
+    elif opt.dataset == 'imagenet':
+        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet/train/'
+    else:
+        opt.data_folder = './datasets/'
 
     iterations = opt.lr_decay_epochs.split(',')
     opt.lr_decay_epochs = list([])
@@ -89,6 +95,10 @@ def parse_option():
         opt.n_cls = 10
     elif opt.dataset == 'cifar100':
         opt.n_cls = 100
+    elif opt.dataset == 'imagenet100':
+        opt.n_cls = 100
+    elif opt.dataset == 'imagenet':
+        opt.n_cls = 1000
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
 

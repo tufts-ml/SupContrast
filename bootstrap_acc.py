@@ -66,7 +66,9 @@ if __name__ == "__main__":
     out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),
+                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_old/")]
     # print bootstrapped accuracy CIs
     for out_folder in out_folders:
         y_pred = torch.load(out_folder / "preds.pth")
