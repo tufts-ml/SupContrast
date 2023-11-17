@@ -8,6 +8,7 @@ import math
 
 import torch
 import torch.backends.cudnn as cudnn
+from torch.utils.data.dataset import Subset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms, datasets
 
@@ -48,7 +49,8 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'path'],
+                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
+                                 'path'],
                         help='dataset')
     parser.add_argument('--mean', type=str,
                         help='mean of dataset in path in form of str tuple')
@@ -160,11 +162,15 @@ def set_loader(opt):
         normalize,
     ])
 
-    if opt.dataset == 'cifar10':
+    if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
         train_dataset = datasets.CIFAR10(root=opt.data_folder,
                                          transform=TwoCropTransform(
                                              train_transform),
                                          download=True)
+        if opt.dataset == 'cifar2':
+            classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
+            indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            train_dataset = Subset(train_dataset, indices)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
                                           transform=TwoCropTransform(
