@@ -141,6 +141,9 @@ def set_loader(opt):
     elif opt.dataset == 'cifar100':
         mean = (0.5071, 0.4867, 0.4408)
         std = (0.2675, 0.2565, 0.2761)
+    elif opt.dataset == 'cifar2':
+        mean = (0.4977, 0.4605, 0.4160)
+        std = (0.2537, 0.2481, 0.2535)
     elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
