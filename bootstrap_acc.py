@@ -61,16 +61,21 @@ if __name__ == "__main__":
     from util import accuracy
 
     b_scores_cache = []
-    metric = partial(accuracy, topk=(1, 5))
     # out_folders should have pairs of models to compare
     out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),
+                   Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_old/"),
                    Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_new/"),
                    Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_old/")]
     # print bootstrapped accuracy CIs
     for out_folder in out_folders:
+        if "cifar2" in str(out_folder):
+            metric = partial(accuracy, topk=(1,))
+        else:
+            metric = partial(accuracy, topk=(1, 5))
         y_pred = torch.load(out_folder / "preds.pth")
         y_true = torch.load(out_folder / "labels.pth")
         print(out_folder)
