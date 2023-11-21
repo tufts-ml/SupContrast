@@ -156,7 +156,7 @@ def set_loader(opt):
             classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
             train_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
             train_dataset = Subset(train_dataset, train_indices)
-            val_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            val_indices = torch.where(torch.isin(torch.Tensor(val_dataset.targets), classes))[0]
             val_dataset = Subset(val_dataset, val_indices)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
