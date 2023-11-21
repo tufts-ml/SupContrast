@@ -168,7 +168,7 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
 
         # update metric
         losses.update(loss.item(), bsz)
-        acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+        acc1 = accuracy(output, labels, topk=(1,))
         top1.update(acc1[0], bsz)
 
         # SGD
@@ -217,9 +217,12 @@ def validate(val_loader, model, classifier, criterion, opt):
 
             # update metric
             losses.update(loss.item(), bsz)
-            acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+            if opt.n_cls > 4:
+                acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+                top5.update(acc5[0], bsz)
+            else:
+                acc1 = accuracy(output, labels, topk=(1,))
             top1.update(acc1[0], bsz)
-            top5.update(acc5[0], bsz)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
