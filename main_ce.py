@@ -9,6 +9,7 @@ import math
 import tensorboard_logger as tb_logger
 import torch
 import torch.backends.cudnn as cudnn
+from torch.utils.data import Subset
 from torchvision import transforms, datasets
 
 from util import AverageMeter
@@ -121,6 +122,9 @@ def set_loader(opt):
     elif opt.dataset == 'cifar100':
         mean = (0.5071, 0.4867, 0.4408)
         std = (0.2675, 0.2565, 0.2761)
+    elif opt.dataset == 'cifar2':
+        mean = (0.4977, 0.4605, 0.4160)
+        std = (0.2537, 0.2481, 0.2535)
     elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
@@ -141,13 +145,19 @@ def set_loader(opt):
         normalize,
     ])
 
-    if opt.dataset == 'cifar10':
+    if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
         train_dataset = datasets.CIFAR10(root=opt.data_folder,
                                          transform=train_transform,
                                          download=True)
         val_dataset = datasets.CIFAR10(root=opt.data_folder,
                                        train=False,
                                        transform=val_transform)
+        if opt.dataset == 'cifar2':
+            classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
+            train_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            train_dataset = Subset(train_dataset, train_indices)
+            val_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            val_dataset = Subset(val_dataset, val_indices)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
                                           transform=train_transform,

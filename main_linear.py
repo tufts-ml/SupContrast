@@ -45,7 +45,7 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet'],
+                        choices=['cifar10', 'cifar100', 'cifar2', 'imagenet100', 'imagenet'],
                         help='dataset')
 
     # other setting
@@ -95,6 +95,8 @@ def parse_option():
         opt.n_cls = 10
     elif opt.dataset == 'cifar100':
         opt.n_cls = 100
+    elif opt.dataset == 'cifar2':
+        opt.n_cls = 2
     elif opt.dataset == 'imagenet100':
         opt.n_cls = 100
     elif opt.dataset == 'imagenet':
