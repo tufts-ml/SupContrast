@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sklearn.metrics
 import torch
 from torch.nn.functional import cosine_similarity
 
@@ -35,10 +36,14 @@ def cos_sim_conf_mat(embeds, labels):
 
 
 def plot_conf_mat(conf_mat, labels="auto"):
+    fig_folder = Path("figures/confusion")
+    fig_folder.mkdir(exist_ok=True)
     fig, ax = plt.subplots()
     ax = sns.heatmap(conf_mat, vmin=0.25, vmax=0.85, cmap="Blues", annot=True, fmt=".2f",
                      square=True, ax=ax, xticklabels=labels, yticklabels=labels)
-    return fig
+    plt.title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
+    fig.savefig(fig_folder / (out_folder.name + ".pdf"), bbox_inches='tight')
+    plt.close()
 
 
 def pair_sim_mat(embeds):
@@ -51,7 +56,9 @@ def pair_sim_mat(embeds):
     return pair_mat
 
 
-def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
+def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
+    fig_folder = Path("figures/hist")
+    fig_folder.mkdir(exist_ok=True)
     n_labels = len(torch.unique(labels))
     for label in range(n_labels):
         # get similarities from target distribution
@@ -74,6 +81,44 @@ def pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder):
         ax.set_ylim(0, .085)
         ax.set_title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
+        plt.close()
+
+
+def pair_sim_curves(pair_mat, labels, class_labels, out_folder):
+    roc_fig_folder = Path("figures/roc")
+    roc_fig_folder.mkdir(exist_ok=True)
+    pr_fig_folder = Path("figures/pr")
+    pr_fig_folder.mkdir(exist_ok=True)
+    n_labels = len(torch.unique(labels))
+    for label in range(n_labels):
+        # get similarities from target distribution
+        target_mask = labels == label
+        target_sim = pair_mat[target_mask][:, target_mask]
+        # remove diagonal entries and flatten
+        target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
+        # get similarities from noise distribution
+        noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
+        # plot ROC and save
+        fig, ax = plt.subplots()
+        sklearn.metrics.RocCurveDisplay.from_predictions(
+            [class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
+            torch.hstack((target_sim, noise_sim)),
+            pos_label=class_labels[label],
+            name="SINCERE Loss" if "new" in out_folder.name else "SupCon Loss",
+            ax=ax,
+        )
+        fig.savefig(roc_fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
+        plt.close()
+        # plot PR and save
+        fig, ax = plt.subplots()
+        sklearn.metrics.PrecisionRecallDisplay.from_predictions(
+            [class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
+            torch.hstack((target_sim, noise_sim)),
+            pos_label=class_labels[label],
+            name="SINCERE Loss" if "new" in out_folder.name else "SupCon Loss",
+            ax=ax,
+        )
+        fig.savefig(pr_fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
         plt.close()
 
 
@@ -127,9 +172,9 @@ if __name__ == "__main__":
         if "cifar100" in out_folder.name:
             continue
         # paired similarity histogram
-        fig_folder = Path("figures/hist")
-        fig_folder.mkdir(exist_ok=True)
-        pair_sim_hist(pair_mat, labels, class_labels, fig_folder, out_folder)
+        pair_sim_hist(pair_mat, labels, class_labels, out_folder)
+        # paired similarity ROC and PR curves
+        pair_sim_curves(pair_mat, labels, class_labels, out_folder)
         # cosine similarity confusion matrix
         if not (out_folder / "conf_mat.pth").exists():
             embeds = torch.load(out_folder / "embeds.pth")
@@ -138,9 +183,5 @@ if __name__ == "__main__":
         else:
             conf_mat = torch.load(out_folder / "conf_mat.pth")
         print(conf_mat)
-        fig_folder = Path("figures/confusion")
-        fig_folder.mkdir(exist_ok=True)
-        fig = plot_conf_mat(conf_mat, class_labels)
-        plt.title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
-        fig.savefig(fig_folder / (out_folder.name + ".pdf"), bbox_inches='tight')
+        plot_conf_mat(conf_mat, class_labels)
         print()
