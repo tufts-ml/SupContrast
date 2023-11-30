@@ -56,18 +56,23 @@ def pair_sim_mat(embeds):
     return pair_mat
 
 
+def pair_mat_to_target_noise(pair_mat, labels, target_label):
+    # get similarities from target distribution
+    target_mask = labels == target_label
+    target_sim = pair_mat[target_mask][:, target_mask]
+    # remove diagonal entries and flatten
+    target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
+    # get similarities from noise distribution
+    noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
+    return target_sim, noise_sim
+
+
 def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
     fig_folder = Path("figures/hist")
     fig_folder.mkdir(exist_ok=True)
     n_labels = len(torch.unique(labels))
     for label in range(n_labels):
-        # get similarities from target distribution
-        target_mask = labels == label
-        target_sim = pair_mat[target_mask][:, target_mask]
-        # remove diagonal entries and flatten
-        target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
-        # get similarities from noise distribution
-        noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
+        target_sim, noise_sim = pair_mat_to_target_noise(pair_mat, labels, label)
         # plot histogram and save
         fig, ax = plt.subplots()
         sns.histplot(
@@ -94,13 +99,7 @@ def pair_sim_curves(pair_mat, labels, class_labels, out_folder):
     pr_fig_folder.mkdir(exist_ok=True)
     n_labels = len(torch.unique(labels))
     for label in range(n_labels):
-        # get similarities from target distribution
-        target_mask = labels == label
-        target_sim = pair_mat[target_mask][:, target_mask]
-        # remove diagonal entries and flatten
-        target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
-        # get similarities from noise distribution
-        noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
+        target_sim, noise_sim = pair_mat_to_target_noise(pair_mat, labels, label)
         # plot ROC and save
         fig, ax = plt.subplots()
         sklearn.metrics.RocCurveDisplay.from_predictions(
