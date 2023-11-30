@@ -77,7 +77,10 @@ def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
             common_bins=True, common_norm=False)
         ax.set_xlabel("Cosine Similarity")
         ax.set_ylabel("Test Set Proportion")
-        ax.set_xlim(0.15, 1)
+        if "cifar2" in out_folder.name:
+            ax.set_xlim(0, 1)
+        else:
+            ax.set_xlim(0.15, 1)
         ax.set_ylim(0, .085)
         ax.set_title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
         fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
@@ -150,12 +153,12 @@ def expected_bound(pair_mat, labels, temp=0.1):
 if __name__ == "__main__":
     from pathlib import Path
 
-    out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
+    out_folders = [Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_new/"),
+                   Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_old/"),
+                   Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),]
-    # CIFAR10 labels
-    class_labels = ('Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
@@ -167,10 +170,15 @@ if __name__ == "__main__":
         else:
             pair_mat = torch.load(out_folder / "pair_mat.pth")
         labels = torch.load(out_folder / "labels.pth")
-        # bound expectation
-        print(f"Expectation of Bound: {expected_bound(pair_mat, labels)}")
         if "cifar100" in out_folder.name:
             continue
+        if "cifar10" in out_folder.name:
+            # CIFAR-10 labels
+            class_labels = ('Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog',
+                            'Horse', 'Ship', 'Truck')
+        else:
+            # CIFAR-2 labels
+            class_labels = ('Cat', 'Dog')
         # paired similarity histogram
         pair_sim_hist(pair_mat, labels, class_labels, out_folder)
         # paired similarity ROC and PR curves
