@@ -6,7 +6,7 @@ import embed_stats
 
 
 def bootstrap_nce_metric(pair_mat, labels, metric_func,
-                         n_bootstraps=1000, rng_seed=123):
+                         n_bootstraps=100, rng_seed=123):
     b_scores = None
     rng = torch.random.manual_seed(rng_seed)
     # bootstrap
