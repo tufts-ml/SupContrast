@@ -32,7 +32,9 @@ def nce_av_precision(pair_mat, labels):
         target_sim, noise_sim = embed_stats.pair_mat_to_target_noise(pair_mat, labels, label)
         av_precisions.append(sklearn.metrics.average_precision_score(
             [1] * len(target_sim) + [0] * len(noise_sim),
-            torch.hstack((target_sim, noise_sim))))
+            torch.hstack((target_sim, noise_sim)),
+            sample_weight=[1 / len(target_sim)] * len(target_sim) +
+            [1 / len(noise_sim)] * len(noise_sim)))
     return torch.mean(torch.Tensor(av_precisions))
 
 
