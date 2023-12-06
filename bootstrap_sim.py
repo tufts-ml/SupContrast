@@ -46,9 +46,7 @@ if __name__ == "__main__":
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
                    Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
                    Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),
-                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_old/")]
+                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/")]
     # print bootstrapped average precision CIs
     for out_folder in out_folders:
         pair_mat = torch.load(out_folder / "pair_mat.pth")
