@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 import tensorboard_logger as tb_logger
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, DistributedSampler, Subset
 from torchvision import transforms, datasets
 
 from util import AverageMeter, TwoCropTransform
@@ -118,7 +118,7 @@ def parse_option():
 
 
 def set_loader(opt, contrast_trans=False):
-    # construct data loader
+    # dataset specific normalization
     if opt.dataset == 'cifar10':
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2023, 0.1994, 0.2010)
@@ -138,6 +138,7 @@ def set_loader(opt, contrast_trans=False):
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
     normalize = transforms.Normalize(mean=mean, std=std)
 
+    # contrastive data transforms
     if contrast_trans:
         train_transform = TwoCropTransform(transforms.Compose([
             transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
@@ -155,6 +156,7 @@ def set_loader(opt, contrast_trans=False):
             transforms.ToTensor(),
             normalize,
         ]))
+    # non-contrastive data transforms
     else:
         train_transform = transforms.Compose([
             transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
@@ -168,6 +170,7 @@ def set_loader(opt, contrast_trans=False):
             normalize,
         ])
 
+    # construct dataset
     if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
         train_dataset = datasets.CIFAR10(root=opt.data_folder,
                                          transform=train_transform,
@@ -175,15 +178,16 @@ def set_loader(opt, contrast_trans=False):
         test_dataset = datasets.CIFAR10(root=opt.data_folder,
                                         train=False,
                                         transform=test_transform)
+        # produce CIFAR-2 (cats vs dogs) from CIFAR-10
         if opt.dataset == 'cifar2':
             classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
             cls_idx_map = {int(classes[0]): 0, int(classes[1]): 1}
-            train_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            train_ind = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
             train_dataset.target_transform = lambda x: cls_idx_map[x]
-            train_dataset = Subset(train_dataset, train_indices)
-            test_indices = torch.where(torch.isin(torch.Tensor(test_dataset.targets), classes))[0]
+            train_dataset = Subset(train_dataset, train_ind)
+            test_ind = torch.where(torch.isin(torch.Tensor(test_dataset.targets), classes))[0]
             test_dataset.target_transform = lambda x: cls_idx_map[x]
-            test_dataset = Subset(test_dataset, test_indices)
+            test_dataset = Subset(test_dataset, test_ind)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
                                           transform=train_transform,
@@ -201,15 +205,26 @@ def set_loader(opt, contrast_trans=False):
 
     if opt.valid_split == 0:
         valid_loader = None
+    # split validation off of train
     else:
-        # TODO validation split
-        valid_loader = None
+        old_train = train_dataset
+        train_ind, valid_ind = train_test_split(
+            range(len(old_train)), stratify=old_train.targets, test_size=opt.valid_split,
+            random_state=12345)
+        train_dataset = Subset(old_train, train_ind)
+        valid_dataset = Subset(old_train, valid_ind)
+        # construct validation data loader
+        valid_sampler = DistributedSampler(valid_dataset) if "device" in opt else None
+        valid_loader = DataLoader(
+            valid_dataset, batch_size=opt.batch_size, shuffle=(valid_sampler is None),
+            num_workers=opt.num_workers, pin_memory=True, sampler=valid_sampler)
 
-    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if "device" in opt else None
+    # construct train and test data loaders
+    train_sampler = DistributedSampler(train_dataset) if "device" in opt else None
     train_loader = DataLoader(
         train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
-    test_sampler = torch.utils.data.DistributedSampler(test_dataset) if "device" in opt else None
+    test_sampler = DistributedSampler(test_dataset) if "device" in opt else None
     test_loader = DataLoader(
         test_dataset, batch_size=opt.batch_size, shuffle=(test_sampler is None),
         num_workers=opt.num_workers, pin_memory=True, sampler=test_sampler)
