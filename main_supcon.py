@@ -8,11 +8,10 @@ import math
 
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data.dataset import Subset
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms, datasets
 
-from util import TwoCropTransform, AverageMeter
+from main_ce import set_loader
+from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate
 from util import set_optimizer, save_model
 from networks.resnet_big import SupConResNet
@@ -52,6 +51,8 @@ def parse_option():
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
                                  'path'],
                         help='dataset')
+    parser.add_argument('--valid_split', type=float, default=0,
+                        help="proportion of train data to use for validation set")
     parser.add_argument('--mean', type=str,
                         help='mean of dataset in path in form of str tuple')
     parser.add_argument('--std', type=str,
@@ -59,7 +60,7 @@ def parse_option():
     parser.add_argument('--data_folder', type=str,
                         default=None, help='path to custom dataset')
     parser.add_argument('--size', type=int, default=32,
-                        help='parameter for RandomResizedCrop')
+                        help='size of images after resizing')
 
     # method
     parser.add_argument('--method', type=str, default='SupCon',
@@ -131,66 +132,6 @@ def parse_option():
     os.makedirs(opt.save_folder, exist_ok=True)
 
     return opt
-
-
-def set_loader(opt):
-    # construct data loader
-    if opt.dataset == 'cifar10':
-        mean = (0.4914, 0.4822, 0.4465)
-        std = (0.2023, 0.1994, 0.2010)
-    elif opt.dataset == 'cifar100':
-        mean = (0.5071, 0.4867, 0.4408)
-        std = (0.2675, 0.2565, 0.2761)
-    elif opt.dataset == 'cifar2':
-        mean = (0.4977, 0.4605, 0.4160)
-        std = (0.2537, 0.2481, 0.2535)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
-        mean = (0.485, 0.456, 0.406)
-        std = (0.229, 0.224, 0.225)
-    elif opt.dataset == 'path':
-        mean = eval(opt.mean)
-        std = eval(opt.std)
-    else:
-        raise ValueError('dataset not supported: {}'.format(opt.dataset))
-    normalize = transforms.Normalize(mean=mean, std=std)
-
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomApply([
-            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
-        ], p=0.8),
-        transforms.RandomGrayscale(p=0.2),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
-        train_dataset = datasets.CIFAR10(root=opt.data_folder,
-                                         transform=TwoCropTransform(
-                                             train_transform),
-                                         download=True)
-        if opt.dataset == 'cifar2':
-            classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
-            indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
-            train_dataset = Subset(train_dataset, indices)
-    elif opt.dataset == 'cifar100':
-        train_dataset = datasets.CIFAR100(root=opt.data_folder,
-                                          transform=TwoCropTransform(
-                                              train_transform),
-                                          download=True)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet' or opt.dataset == 'path':
-        train_dataset = datasets.ImageFolder(root=opt.data_folder,
-                                             transform=TwoCropTransform(train_transform))
-    else:
-        raise ValueError(opt.dataset)
-
-    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if "device" in opt else None
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
-        num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
-
-    return train_loader
 
 
 def set_model(opt):
@@ -288,7 +229,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
 
 def main(opt):
     # build data loader
-    train_loader = set_loader(opt)
+    train_loader, valid_loader, _ = set_loader(opt)
 
     # build model and criterion
     model, criterion = set_model(opt)
