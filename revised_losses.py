@@ -7,7 +7,7 @@ class SINCERELoss(nn.Module):
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, embeds: torch.tensor, labels: torch.tensor):
+    def forward(self, embeds: torch.Tensor, labels: torch.tensor):
         """Supervised InfoNCE REvisited loss with cosine distance
 
         Args:
@@ -97,3 +97,23 @@ class InfoNCELoss(SINCERELoss):
         # create self-supervised labels
         labels = torch.arange(0, embeds.shape[0]).repeat_interleave(embeds.shape[1])
         return super().forward(reshaped_embeds, labels)
+
+
+def contrastive_acc(embeds: torch.Tensor, labels: torch.tensor):
+    """Get accuracy of supervised contrastive learning predictions
+
+    Args:
+        embeds (torch.Tensor): (B, D) embeddings of B images normalized over D dimension.
+        labels (torch.tensor): (B,) integer class labels.
+
+    Returns:
+        torch.Tensor: (B,) 1 if predicted image with same label, otherwise 0
+    """
+    batch_size = labels.shape[0]
+    # calculate logits (B, B)
+    logits = embeds @ embeds.T
+    # prevent diagonal from being max while keeping same shape
+    logits[torch.eye(batch_size, dtype=bool)] = -1e5
+    # indices with greatest cosine similarity
+    pred = torch.argmax(logits, dim=1)
+    return (labels == labels[pred]).float()
