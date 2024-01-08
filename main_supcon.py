@@ -189,10 +189,10 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             # compute loss
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
-            embeds = model(images)
+            flat_embeds = model(images)
             # reshape from (2B, D) to (B, 2, D)
             embeds = torch.cat(
-                [aug.unsqueeze(1) for aug in torch.split(embeds, [bsz, bsz], dim=0)], dim=1)
+                [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
             if is_train:
                 # compute losses
                 sincere_loss = sincere_loss_func(embeds, labels)
