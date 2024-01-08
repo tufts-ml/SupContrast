@@ -151,7 +151,11 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
-    for i, loader in enumerate([train_loader, valid_loader]):
+    # use valid_loader if present
+    loaders = [train_loader]
+    if valid_loader is not None:
+        loaders.append(valid_loader)
+    for i, loader in enumerate(loaders):
         is_train = i == 0
         if is_train:
             model.train()
@@ -223,7 +227,7 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
 
             # print info
             if (idx + 1) % opt.print_freq == 0:
-                print('Train: [{0}][{1}/{2}]\t'
+                print('Epoch: [{0}][{1}/{2}]\t'
                       'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
                         epoch, idx + 1, len(loader), batch_time=av_batch_time,
