@@ -243,8 +243,8 @@ def main(opt):
     # build data loader
     train_loader, valid_loader, _ = set_loader(opt)
 
-    # build model and criterion
-    model, criterion = set_model(opt)
+    # build model
+    model = set_model(opt)
 
     # build optimizer
     optimizer = set_optimizer(opt, model)
@@ -259,7 +259,7 @@ def main(opt):
 
         # train for one epoch
         time1 = time.time()
-        train(train_loader, valid_loader, model, criterion, optimizer, epoch, opt, logger)
+        train(train_loader, valid_loader, model, optimizer, epoch, opt, logger)
         time2 = time.time()
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
