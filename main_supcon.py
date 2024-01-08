@@ -169,10 +169,10 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
         # change reshuffle split of data across GPUs
         if "device" in opt:
             loader.sampler.set_epoch(epoch)
-        for idx, (images, labels) in enumerate(loader):
+        for idx, (image_aug_tuple, labels) in enumerate(loader):
             av_data_time.update(time.time() - end)
 
-            images = torch.cat([images[0], images[1]], dim=0)
+            images = torch.cat([image_aug_tuple[0], image_aug_tuple[1]], dim=0)
             if torch.cuda.is_available():
                 if "device" not in opt:
                     images = images.cuda(non_blocking=True)
@@ -190,8 +190,9 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
             embeds = model(images)
-            f1, f2 = torch.split(embeds, [bsz, bsz], dim=0)
-            embeds = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
+            # reshape from (2B, D) to (B, 2, D)
+            embeds = torch.cat(
+                [aug.unsqueeze(1) for aug in torch.split(embeds, [bsz, bsz], dim=0)], dim=1)
             if is_train:
                 # compute losses
                 sincere_loss = sincere_loss_func(embeds, labels)
@@ -241,7 +242,7 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
 
 def main(opt):
     # build data loader
-    train_loader, valid_loader, _ = set_loader(opt)
+    train_loader, valid_loader, _ = set_loader(opt, contrast_trans=True)
 
     # build model
     model = set_model(opt)
