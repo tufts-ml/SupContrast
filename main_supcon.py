@@ -215,11 +215,12 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
                                      format(opt.method))
                 optimizer.step()
             # compute accuracy
-            acc = contrastive_acc(embeds, labels)
+            with torch.no_grad():
+                acc = contrastive_acc(embeds, labels)
             if is_train:
-                av_train_ac.update(acc, bsz)
+                av_train_ac.update(acc.item(), bsz)
             else:
-                av_valid_ac.update(acc, bsz)
+                av_valid_ac.update(acc.item(), bsz)
 
             # measure elapsed time
             av_batch_time.update(time.time() - end)
