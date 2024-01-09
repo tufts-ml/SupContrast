@@ -196,13 +196,13 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             # reshape from (2B, D) to (B, 2, D)
             embeds = torch.cat(
                 [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
+            # compute losses
+            sincere_loss = sincere_loss_func(embeds, labels)
+            supcon_loss = supcon_loss_func(embeds, labels)
+            # update averages
+            av_sincere.update(sincere_loss.item(), bsz)
+            av_supcon.update(supcon_loss.item(), bsz)
             if is_train:
-                # compute losses
-                sincere_loss = sincere_loss_func(embeds, labels)
-                supcon_loss = supcon_loss_func(embeds, labels)
-                # update averages
-                av_sincere.update(sincere_loss.item(), bsz)
-                av_supcon.update(supcon_loss.item(), bsz)
                 # SGD
                 optimizer.zero_grad()
                 if opt.method == 'SINCERE':
