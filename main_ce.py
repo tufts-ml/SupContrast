@@ -13,6 +13,7 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader, DistributedSampler, Subset
 from torchvision import transforms, datasets
 
+import sampler
 from util import AverageMeter, TwoCropTransform
 from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import set_optimizer, save_model
@@ -214,20 +215,33 @@ def set_loader(opt, contrast_trans=False):
         train_dataset = Subset(old_train, train_ind)
         valid_dataset = Subset(old_train, valid_ind)
         # construct validation data loader
-        valid_sampler = DistributedSampler(valid_dataset) if "device" in opt else None
-        valid_loader = DataLoader(
-            valid_dataset, batch_size=opt.batch_size, shuffle=(valid_sampler is None),
-            num_workers=opt.num_workers, pin_memory=True, sampler=valid_sampler)
+        if "device" in opt:
+            valid_loader = DataLoader(
+                valid_dataset, num_workers=opt.num_workers, pin_memory=True,
+                batch_size=opt.batch_size,
+                sampler=DistributedSampler(valid_dataset) if "device" in opt else None)
+        else:
+            valid_loader = DataLoader(
+                valid_dataset, num_workers=opt.num_workers, pin_memory=True,
+                batch_sampler=sampler.my_sampler(valid_dataset, opt.batch_size))
 
     # construct train and test data loaders
-    train_sampler = DistributedSampler(train_dataset) if "device" in opt else None
-    train_loader = DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
-        num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
-    test_sampler = DistributedSampler(test_dataset) if "device" in opt else None
-    test_loader = DataLoader(
-        test_dataset, batch_size=opt.batch_size, shuffle=(test_sampler is None),
-        num_workers=opt.num_workers, pin_memory=True, sampler=test_sampler)
+    if "device" in opt:
+        train_loader = DataLoader(
+            train_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size,
+            sampler=DistributedSampler(train_dataset) if "device" in opt else None)
+        test_loader = DataLoader(
+            test_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size,
+            sampler=DistributedSampler(test_dataset) if "device" in opt else None)
+    else:
+        train_loader = DataLoader(
+            train_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_sampler=sampler.my_sampler(train_dataset, opt.batch_size))
+        test_loader = DataLoader(
+            test_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_sampler=sampler.my_sampler(test_dataset, opt.batch_size))
 
     return train_loader, valid_loader, test_loader
 
