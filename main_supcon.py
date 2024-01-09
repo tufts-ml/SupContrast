@@ -166,8 +166,7 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
         av_data_time = AverageMeter()
         av_sincere = AverageMeter()
         av_supcon = AverageMeter()
-        av_train_ac = AverageMeter()
-        av_valid_ac = AverageMeter()
+        av_acc = AverageMeter()
 
         end = time.time()
         # change reshuffle split of data across GPUs
@@ -217,10 +216,7 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             # compute accuracy
             with torch.no_grad():
                 acc = contrastive_acc(embeds, labels)
-            if is_train:
-                av_train_ac.update(acc.item(), bsz)
-            else:
-                av_valid_ac.update(acc.item(), bsz)
+                av_acc.update(acc.item(), bsz)
 
             # measure elapsed time
             av_batch_time.update(time.time() - end)
@@ -237,11 +233,12 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
 
         # tensorboard logger
         if "device" not in opt or opt.device == 0:
-            logger.add_scalar("SINCERE", av_sincere.avg, epoch)
-            logger.add_scalar("SupCon", av_supcon.avg, epoch)
-            logger.add_scalar("Train Accuracy", av_train_ac.avg, epoch)
-            logger.add_scalar("Validation Accuracy", av_valid_ac.avg, epoch)
-            logger.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
+            log_folder = "train/" if is_train else "valid/"
+            logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
+            logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
+            logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+    # log values independent of forward passes
+    logger.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
     return
 
 
