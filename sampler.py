@@ -85,7 +85,7 @@ class SamplerFactory:
         Calculates the number of samples of each class to include in each batch, and the number
         of batches required to use all the data in an epoch.
         """
-        class_samples_per_batch = np.round((weights * batch_size)).astype(int)
+        class_samples_per_batch = np.ceil((weights * batch_size)).astype(int)
 
         # cleanup rounding edge-cases by removing examples from largest classes
         # loop used to better handle uniform class weight
