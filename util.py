@@ -1,9 +1,19 @@
 from __future__ import print_function
 
 import math
+from typing import Sequence
+
 import numpy as np
 import torch
 import torch.optim as optim
+from torch.utils.data import Subset
+from torch.utils.data.dataset import Dataset
+
+
+class SubsetWithTargets(Subset):
+    def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
+        super().__init__(dataset, indices)
+        self.targets = list(torch.tensor(dataset.targets)[indices])
 
 
 class TwoCropTransform:

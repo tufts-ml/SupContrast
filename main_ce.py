@@ -10,13 +10,12 @@ from sklearn.model_selection import train_test_split
 import tensorboard_logger as tb_logger
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data import DataLoader, DistributedSampler, Subset
+from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import transforms, datasets
 
 import sampler
-from util import AverageMeter, TwoCropTransform
-from util import adjust_learning_rate, warmup_learning_rate, accuracy
-from util import set_optimizer, save_model
+from util import AverageMeter, TwoCropTransform, SubsetWithTargets
+from util import adjust_learning_rate, warmup_learning_rate, accuracy, set_optimizer, save_model
 from networks.resnet_big import SupCEResNet
 
 
@@ -185,10 +184,10 @@ def set_loader(opt, contrast_trans=False):
             cls_idx_map = {int(classes[0]): 0, int(classes[1]): 1}
             train_ind = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
             train_dataset.target_transform = lambda x: cls_idx_map[x]
-            train_dataset = Subset(train_dataset, train_ind)
+            train_dataset = SubsetWithTargets(train_dataset, train_ind)
             test_ind = torch.where(torch.isin(torch.Tensor(test_dataset.targets), classes))[0]
             test_dataset.target_transform = lambda x: cls_idx_map[x]
-            test_dataset = Subset(test_dataset, test_ind)
+            test_dataset = SubsetWithTargets(test_dataset, test_ind)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
                                           transform=train_transform,
@@ -212,8 +211,8 @@ def set_loader(opt, contrast_trans=False):
         train_ind, valid_ind = train_test_split(
             range(len(old_train)), stratify=old_train.targets, test_size=opt.valid_split,
             random_state=12345)
-        train_dataset = Subset(old_train, train_ind)
-        valid_dataset = Subset(old_train, valid_ind)
+        train_dataset = SubsetWithTargets(old_train, train_ind)
+        valid_dataset = SubsetWithTargets(old_train, valid_ind)
         # construct validation data loader
         if "device" in opt:
             valid_loader = DataLoader(
