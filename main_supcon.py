@@ -191,22 +191,24 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             if is_train:
                 warmup_learning_rate(opt, epoch, idx, len(loader), optimizer)
 
-            # compute loss
-            # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
-            # see MoCo v3 for full batch size parallelization with torch's all_gather
-            flat_embeds = model(images)
+            # forward
+            with torch.set_grad_enabled(is_train):
+                flat_embeds = model(images)
             # reshape from (2B, D) to (B, 2, D)
             embeds = torch.cat(
                 [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
             # compute losses
+            # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
+            # see MoCo v3 for full batch size parallelization with torch's all_gather
             sincere_loss = sincere_loss_func(embeds, labels)
             supcon_loss = supcon_loss_func(embeds, labels)
             # update averages
             av_sincere.update(sincere_loss.item(), bsz)
             av_supcon.update(supcon_loss.item(), bsz)
+            # SGD
+            # always zero in case grad accidentally calculated for non-train epoch
+            optimizer.zero_grad()
             if is_train:
-                # SGD
-                optimizer.zero_grad()
                 if opt.method == 'SINCERE':
                     sincere_loss.backward()
                 elif opt.method == 'SupCon':
