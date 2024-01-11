@@ -1,5 +1,0 @@
---batch_size = [512]
---learning_rate = [5.0, 1.0, 0.1, 0.05, 0.005]
---temp = [0.1]
---cosine = [""]
---method = ["SINCERE", "SupCon"]
