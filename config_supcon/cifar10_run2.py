@@ -7,8 +7,9 @@ launch_cmd = "cd ~/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py
 search_dict = {
     "--batch_size": 512,
     "--learning_rate": [0.1, 0.5, 1],
-    "--temp": [0.05, 0.1, 0.5],
+    "--temp": [0.01, 0.1, 1],
     "--cosine": "",
+    "--epochs": 800,
     "--method": ["SINCERE", "SupCon"],
     "--valid_split": 0.1,
 }
