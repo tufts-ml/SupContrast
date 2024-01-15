@@ -131,6 +131,8 @@ def parse_option():
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
+    # write args to log
+    print(opt)
     return opt
 
 
