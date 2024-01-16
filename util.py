@@ -25,6 +25,16 @@ class TwoCropTransform:
         return [self.transform(x), self.transform(x)]
 
 
+class DoubleTransform:
+    """Return array with two transforms of an image"""
+    def __init__(self, transform1, transform2):
+        self.transform1 = transform1
+        self.transform2 = transform2
+
+    def __call__(self, x):
+        return [self.transform1(x), self.transform2(x)]
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):

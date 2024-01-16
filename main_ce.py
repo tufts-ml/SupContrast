@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import transforms, datasets
 
 import sampler
-from util import AverageMeter, TwoCropTransform, SubsetWithTargets
+from util import AverageMeter, DoubleTransform, SubsetWithTargets, TwoCropTransform
 from util import adjust_learning_rate, warmup_learning_rate, accuracy, set_optimizer, save_model
 from networks.resnet_big import SupCEResNet
 
@@ -151,12 +151,19 @@ def set_loader(opt, contrast_trans=False):
             transforms.ToTensor(),
             normalize,
         ]))
-        test_transform = TwoCropTransform(transforms.Compose([
-            transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
+        # first image is non-augmented, second is lightly augmented
+        test_transform = DoubleTransform(
+            transforms.Compose([
+                transforms.Resize([opt.size, opt.size]),
+                transforms.ToTensor(),
+                normalize,
+            ]),
+            transforms.Compose([
+                transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ]))
     # non-contrastive data transforms
     else:
         train_transform = transforms.Compose([
