@@ -123,7 +123,7 @@ def parse_option():
         else:
             opt.warmup_to = opt.learning_rate
     # add time to model name
-    opt.model_name += "_" + time.strftime("%Y_%m_%d-%H_%M_%S_%f")
+    opt.model_name += "_" + time.strftime("%Y_%m_%d-%H_%M_%S")
 
     opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
     os.makedirs(opt.tb_folder, exist_ok=True)
