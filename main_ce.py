@@ -1,10 +1,11 @@
 from __future__ import print_function
 
-import os
-import sys
 import argparse
-import time
+import copy
+import os
 import math
+import sys
+import time
 
 from sklearn.model_selection import train_test_split
 import tensorboard_logger as tb_logger
@@ -208,11 +209,13 @@ def set_loader(opt, contrast_trans=False):
     # split validation off of train
     else:
         old_train = train_dataset
+        old_val = copy.deepcopy(train_dataset)
+        old_val.transform = test_transform
         train_ind, valid_ind = train_test_split(
             range(len(old_train)), stratify=old_train.targets, test_size=opt.valid_split,
             random_state=12345)
         train_dataset = SubsetWithTargets(old_train, train_ind)
-        valid_dataset = SubsetWithTargets(old_train, valid_ind)
+        valid_dataset = SubsetWithTargets(old_val, valid_ind)
         # construct validation data loader
         if "device" in opt:
             valid_loader = DataLoader(
