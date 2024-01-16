@@ -224,8 +224,8 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
                 if is_train:
                     acc = contrastive_acc(embeds, labels)
                 else:
-                    # use only the unaugmented images for validation
-                    acc = contrastive_acc(embeds[:, 0], labels)
+                    # use only the unaugmented images for validation, keeping view dim
+                    acc = contrastive_acc(embeds[:, 0].unsqueeze(1), labels)
                 av_acc.update(acc.item(), bsz)
 
             # measure elapsed time
