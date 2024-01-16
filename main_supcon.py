@@ -221,7 +221,11 @@ def train(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
                 optimizer.step()
             # compute accuracy
             with torch.no_grad():
-                acc = contrastive_acc(embeds, labels)
+                if is_train:
+                    acc = contrastive_acc(embeds, labels)
+                else:
+                    # use only the unaugmented images for validation
+                    acc = contrastive_acc(embeds[:, 0], labels)
                 av_acc.update(acc.item(), bsz)
 
             # measure elapsed time
