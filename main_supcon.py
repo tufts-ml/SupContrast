@@ -246,10 +246,8 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
 
     # caches for data
-    train_embeds = torch.empty((0, 2048))
-    valid_embeds = torch.empty((0, 2048))
+    train_embeds = torch.empty((0, 128))
     train_labels = torch.empty((0,))
-    valid_labels = torch.empty((0,))
     for i, loader in enumerate([train_loader, valid_loader]):
         is_train = i == 0
         model.eval()
@@ -258,6 +256,7 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
         av_data_time = AverageMeter()
         av_sincere = AverageMeter()
         av_supcon = AverageMeter()
+        av_acc = AverageMeter()
 
         end = time.time()
         # change reshuffle split of data across GPUs
@@ -277,7 +276,7 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             bsz = labels.shape[0]
 
             # forward
-            with torch.set_grad_enabled(False):
+            with torch.no_grad():
                 flat_embeds = model(images)
             # reshape from (2B, D) to (B, 2, D)
             embeds = torch.cat(
@@ -286,9 +285,11 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             if is_train:
                 train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
                 train_labels = torch.hstack((train_labels, labels.cpu()))
+            # compute validation accuracy
             else:
-                valid_embeds = torch.vstack((valid_embeds, embeds[:, 0].cpu()))
-                valid_labels = torch.hstack((valid_labels, labels.cpu()))
+                av_acc.update(test_contrastive_acc(
+                    train_embeds.cuda(), embeds[:, 0].cuda(),
+                    train_labels.cuda(), labels.cuda()).item(), bsz)
             # compute losses
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
@@ -312,16 +313,12 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
                         epoch, idx + 1, len(loader), batch_time=av_batch_time,
                         data_time=av_data_time))
                 sys.stdout.flush()
-    # compute accuracy
-    with torch.no_grad():
-        valid_acc = test_contrastive_acc(train_embeds.cuda(), valid_embeds.cuda(),
-                                         train_labels.cuda(), valid_labels.cuda())
     # tensorboard logger
     if "device" not in opt or opt.device == 0 and not is_train:
         log_folder = "valid/"
         logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
         logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
-        logger.add_scalar(f"{log_folder}Accuracy", valid_acc, epoch)
+        logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
     return
 
 
