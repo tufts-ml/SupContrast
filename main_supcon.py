@@ -238,7 +238,7 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
     return
 
 
-def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
+def valid(train_loader, valid_loader, model, epoch, opt, logger):
     """validation"""
     sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
     # original implementation does not set base_temperature, but setting here to make
@@ -298,8 +298,6 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
             # update averages
             av_sincere.update(sincere_loss.item(), bsz)
             av_supcon.update(supcon_loss.item(), bsz)
-            # always zero in case grad accidentally calculated for non-train epoch
-            optimizer.zero_grad()
 
             # measure elapsed time
             av_batch_time.update(time.time() - end)
@@ -314,11 +312,24 @@ def valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger):
                         data_time=av_data_time))
                 sys.stdout.flush()
     # tensorboard logger
-    if "device" not in opt or opt.device == 0 and not is_train:
-        log_folder = "valid/"
-        logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
-        logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
-        logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+    if logger is not None:
+        if "device" not in opt or opt.device == 0 and not is_train:
+            log_folder = "valid/"
+            logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
+            logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
+            logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+    # print output
+    else:
+        print(f"Test SINCERE: {av_sincere.avg}")
+        print(f"Test SupCon: {av_supcon.avg}")
+        print(f"Test Accuracy: {av_acc.avg}")
+    return
+
+
+def test(model, opt):
+    train_loader, _, test_loader = set_loader(opt, contrast_trans=True)
+    train_loader.dataset.transform = test_loader.dataset.transform
+    valid(train_loader, test_loader, model, 0, opt, None)
     return
 
 
@@ -346,7 +357,7 @@ def main(opt):
         time2 = time.time()
         # use valid_loader if present
         if epoch % 5 == 0 and valid_loader is not None:
-            valid(train_loader, valid_loader, model, optimizer, epoch, opt, logger)
+            valid(train_loader, valid_loader, model, epoch, opt, logger)
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
         # checkpoint
@@ -359,6 +370,9 @@ def main(opt):
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
     save_model(model, optimizer, opt, opt.epochs, save_file)
+
+    # print test statistics
+    test(model, opt)
 
 
 def launch_parallel(rank, world_size):
