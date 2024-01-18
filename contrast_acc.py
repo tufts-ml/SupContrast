@@ -47,8 +47,3 @@ def test_contrastive_acc(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
     # 1 if predicted image with same label, otherwise 0
     acc_vec = (test_labels == train_labels[pred]).float()
     return torch.mean(acc_vec)
-
-
-def test():
-    # TODO
-    return
