@@ -47,3 +47,24 @@ def test_contrastive_acc(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
     # 1 if predicted image with same label, otherwise 0
     acc_vec = (test_labels == train_labels[pred]).float()
     return torch.mean(acc_vec)
+
+
+def test_contrastive_acc_top_k(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
+                               train_labels: torch.Tensor, test_labels: torch.Tensor,
+                               top_k: int):
+    """Top K 1NN accuracy on test set given training set
+
+    Args:
+        train_embeds (torch.Tensor): (N1, D) embeddings of N1 images, normalized over D dimension.
+        test_embeds (torch.Tensor): (N2, D) embeddings of N2 images, normalized over D dimension.
+        train_labels (torch.Tensor): (N1,) integer class labels.
+        test_labels (torch.Tensor): (N2,) integer class labels.
+        top_k (int): ranking of class needed for success.
+    """
+    # calculate logits (N2, N1)
+    logits = test_embeds @ train_embeds.T
+    # indices with greatest cosine similarity
+    _, pred = torch.topk(logits, top_k, dim=1)
+    # 1 if predicted image with same label, otherwise 0
+    acc_vec = torch.any(test_labels.unsqueeze(1) == train_labels[pred], dim=1).float()
+    return torch.mean(acc_vec)

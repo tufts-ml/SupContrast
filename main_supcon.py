@@ -10,7 +10,7 @@ import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
-from contrast_acc import contrastive_acc, test_contrastive_acc
+from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_top_k
 from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate
@@ -256,7 +256,8 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
         av_data_time = AverageMeter()
         av_sincere = AverageMeter()
         av_supcon = AverageMeter()
-        av_acc = AverageMeter()
+        av_acc_top_1 = AverageMeter()
+        av_acc_top_5 = AverageMeter()
 
         end = time.time()
         # change reshuffle split of data across GPUs
@@ -287,9 +288,12 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                 train_labels = torch.hstack((train_labels, labels.cpu()))
             # compute validation accuracy
             else:
-                av_acc.update(test_contrastive_acc(
+                av_acc_top_1.update(test_contrastive_acc(
                     train_embeds.cuda(), embeds[:, 0].cuda(),
                     train_labels.cuda(), labels.cuda()).item(), bsz)
+                av_acc_top_5.update(test_contrastive_acc_top_k(
+                    train_embeds.cuda(), embeds[:, 0].cuda(),
+                    train_labels.cuda(), labels.cuda(), 5).item(), bsz)
             # compute losses
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
@@ -311,18 +315,20 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                         epoch, idx + 1, len(loader), batch_time=av_batch_time,
                         data_time=av_data_time))
                 sys.stdout.flush()
-    # tensorboard logger
-    if logger is not None:
-        if "device" not in opt or opt.device == 0 and not is_train:
+    if "device" not in opt or opt.device == 0 and not is_train:
+        # tensorboard logger
+        if logger is not None:
             log_folder = "valid/"
             logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
             logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
-            logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
-    # print output
-    else:
-        print(f"Test SINCERE: {av_sincere.avg}")
-        print(f"Test SupCon: {av_supcon.avg}")
-        print(f"Test Accuracy: {av_acc.avg}")
+            logger.add_scalar(f"{log_folder}Top 1 Accuracy", av_acc_top_1.avg, epoch)
+            logger.add_scalar(f"{log_folder}Top 5 Accuracy", av_acc_top_5.avg, epoch)
+        # print output
+        else:
+            print(f"Test SINCERE: {av_sincere.avg}")
+            print(f"Test SupCon: {av_supcon.avg}")
+            print(f"Test Top 1 Accuracy: {av_acc_top_1.avg}")
+            print(f"Test Top 5 Accuracy: {av_acc_top_5.avg}")
     return
 
 
