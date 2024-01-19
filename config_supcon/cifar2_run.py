@@ -12,7 +12,7 @@ search_dict = {
     "--epochs": 800,
     "--method": ["SINCERE", "SupCon"],
     "--valid_split": 0.1,
-    "--dataset": "cifar100",
+    "--dataset": "cifar2",
 }
 
 slurm_dict = {
