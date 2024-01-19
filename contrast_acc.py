@@ -62,7 +62,7 @@ def test_contrastive_acc_knn(train_embeds: torch.Tensor, test_embeds: torch.Tens
         knn (int): number of neighbors to use.
     """
     # assumes class labels are zero indexed
-    num_classes = train_labels.max() + 1
+    num_classes = int(train_labels.max().item() + 1)
     # calculate logits (N2, N1)
     logits = test_embeds @ train_embeds.T
     # indices with greatest cosine similarity
