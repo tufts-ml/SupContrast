@@ -49,22 +49,35 @@ def test_contrastive_acc(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
     return torch.mean(acc_vec)
 
 
-def test_contrastive_acc_top_k(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
-                               train_labels: torch.Tensor, test_labels: torch.Tensor,
-                               top_k: int):
-    """Top K 1NN accuracy on test set given training set
+def test_contrastive_acc_knn(train_embeds: torch.Tensor, test_embeds: torch.Tensor,
+                             train_labels: torch.Tensor, test_labels: torch.Tensor,
+                             knn: int):
+    """Weighted KNN accuracy on test set given training set
 
     Args:
         train_embeds (torch.Tensor): (N1, D) embeddings of N1 images, normalized over D dimension.
         test_embeds (torch.Tensor): (N2, D) embeddings of N2 images, normalized over D dimension.
         train_labels (torch.Tensor): (N1,) integer class labels.
         test_labels (torch.Tensor): (N2,) integer class labels.
-        top_k (int): ranking of class needed for success.
+        knn (int): number of neighbors to use.
     """
+    # assumes class labels are zero indexed
+    num_classes = train_labels.max() + 1
     # calculate logits (N2, N1)
     logits = test_embeds @ train_embeds.T
     # indices with greatest cosine similarity
-    _, pred = torch.topk(logits, top_k, dim=1)
+    weights, indices = torch.topk(logits, knn, dim=1)
+    # aggregate weights based on training class labels, with small uninitialized values
+    pred = torch.zeros_like(test_labels)
+    for i in range(len(test_labels)):
+        pred_array = torch.empty((num_classes,))
+        for label in range(num_classes):
+            if label not in train_labels[indices[i]]:
+                pred_array[label] = -1e5
+            else:
+                pred_array[label] = weights[i, label == train_labels[indices[i]]].sum()
+        # select class with most weight as prediction
+        pred[i] = torch.argmax(pred_array)
     # 1 if predicted image with same label, otherwise 0
-    acc_vec = torch.any(test_labels.unsqueeze(1) == train_labels[pred], dim=1).float()
+    acc_vec = (test_labels == pred).float()
     return torch.mean(acc_vec)

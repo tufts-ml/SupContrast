@@ -10,7 +10,7 @@ import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
-from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_top_k
+from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_knn
 from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate
@@ -291,7 +291,7 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                 av_acc_top_1.update(test_contrastive_acc(
                     train_embeds.cuda(), embeds[:, 0].cuda(),
                     train_labels.cuda(), labels.cuda()).item(), bsz)
-                av_acc_top_5.update(test_contrastive_acc_top_k(
+                av_acc_top_5.update(test_contrastive_acc_knn(
                     train_embeds.cuda(), embeds[:, 0].cuda(),
                     train_labels.cuda(), labels.cuda(), 5).item(), bsz)
             # compute losses
