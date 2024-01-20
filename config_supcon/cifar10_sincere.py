@@ -10,7 +10,7 @@ search_dict = {
     "--temp": 0.1,
     "--cosine": "",
     "--epochs": 800,
-    "--method": "SupCon",
+    "--method": "SINCERE",
     "--valid_split": 0,
 }
 
