@@ -240,6 +240,9 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
 
 def valid(train_loader, valid_loader, model, epoch, opt, logger):
     """validation"""
+    # loggger is given if valid_loader is validation set, otherwise is test set
+    val_is_test = logger is None
+
     sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
@@ -248,6 +251,11 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
     # caches for data
     train_embeds = torch.empty((0, 128))
     train_labels = torch.empty((0,))
+    # caches for test data
+    if val_is_test:
+        test_embeds = torch.empty((0, 128))
+        test_labels = torch.empty((0,))
+
     for i, loader in enumerate([train_loader, valid_loader]):
         is_train = i == 0
         model.eval()
@@ -282,10 +290,14 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
             # reshape from (2B, D) to (B, 2, D)
             embeds = torch.cat(
                 [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
-            # cache outputs
+            # cache train outputs
             if is_train:
                 train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
                 train_labels = torch.hstack((train_labels, labels.cpu()))
+            # cache test outputs
+            if val_is_test and not is_train:
+                test_embeds = torch.vstack((test_embeds, embeds[:, 0].cpu()))
+                test_labels = torch.hstack((test_labels, labels.cpu()))
             # compute validation accuracy
             else:
                 av_acc_top_1.update(test_contrastive_acc(
@@ -317,18 +329,23 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                 sys.stdout.flush()
     if "device" not in opt or opt.device == 0 and not is_train:
         # tensorboard logger
-        if logger is not None:
+        if not val_is_test:
             log_folder = "valid/"
             logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
             logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
             logger.add_scalar(f"{log_folder}Top 1 Accuracy", av_acc_top_1.avg, epoch)
             logger.add_scalar(f"{log_folder}Top 5 Accuracy", av_acc_top_5.avg, epoch)
-        # print output
         else:
+            # print output
             print(f"Test SINCERE: {av_sincere.avg}")
             print(f"Test SupCon: {av_supcon.avg}")
             print(f"Test Top 1 Accuracy: {av_acc_top_1.avg}")
             print(f"Test Top 5 Accuracy: {av_acc_top_5.avg}")
+            # save caches
+            torch.save(train_embeds, os.path.join(opt.save_folder, "train_embeds.pth"))
+            torch.save(train_labels, os.path.join(opt.save_folder, "train_labels.pth"))
+            torch.save(test_embeds, os.path.join(opt.save_folder, "test_embeds.pth"))
+            torch.save(test_labels, os.path.join(opt.save_folder, "test_labels.pth"))
     return
 
 
