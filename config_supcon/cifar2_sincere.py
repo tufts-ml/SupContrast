@@ -11,7 +11,7 @@ search_dict = {
     "--cosine": "",
     "--epochs": 800,
     "--method": "SINCERE",
-    "--valid_split": 0.1,
+    "--valid_split": 0,
     "--dataset": "cifar2",
 }
 
