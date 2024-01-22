@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_knn
 from main_ce import set_loader
-from util import AverageMeter, SubsetWithTargets
+from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
@@ -49,7 +49,7 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
-                                 'path'],
+                                 'aircraft', 'cars', 'path'],
                         help='dataset')
     parser.add_argument('--valid_split', type=float, default=0,
                         help="proportion of train data to use for validation set")
@@ -305,7 +305,7 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                 av_acc_top_5.update(test_contrastive_acc_knn(
                     train_embeds.cuda(), embeds[:, 0].cuda(),
                     train_labels.cuda(), labels.cuda(), 5).item(), bsz)
-            # compute losses
+            # compute losses (note there's no class balancing sampler for test)
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
             sincere_loss = sincere_loss_func(embeds, labels)
@@ -345,17 +345,11 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
             torch.save(train_labels, os.path.join(opt.save_folder, "train_labels.pth"))
             torch.save(test_embeds, os.path.join(opt.save_folder, "test_embeds.pth"))
             torch.save(test_labels, os.path.join(opt.save_folder, "test_labels.pth"))
-    return
 
 
 def test(model, opt):
-    train_loader, _, test_loader = set_loader(opt, contrast_trans=True)
-    if isinstance(train_loader.dataset, SubsetWithTargets):
-        train_loader.dataset.dataset.transform = test_loader.dataset.dataset.transform
-    else:
-        train_loader.dataset.transform = test_loader.dataset.transform
+    train_loader, _, test_loader = set_loader(opt, contrast_trans=True, for_test=True)
     valid(train_loader, test_loader, model, 0, opt, None)
-    return
 
 
 def main(opt):
