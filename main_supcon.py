@@ -12,9 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_knn
 from main_ce import set_loader
-from util import AverageMeter
-from util import adjust_learning_rate, warmup_learning_rate
-from util import set_optimizer, save_model
+from util import AverageMeter, SubsetWithTargets
+from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
 from revised_losses import MultiviewSINCERELoss
@@ -351,7 +350,10 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
 
 def test(model, opt):
     train_loader, _, test_loader = set_loader(opt, contrast_trans=True)
-    train_loader.dataset.transform = test_loader.dataset.transform
+    if isinstance(train_loader.dataset, SubsetWithTargets):
+        train_loader.dataset.dataset.transform = test_loader.dataset.dataset.transform
+    else:
+        train_loader.dataset.transform = test_loader.dataset.transform
     valid(train_loader, test_loader, model, 0, opt, None)
     return
 
