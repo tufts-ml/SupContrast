@@ -293,12 +293,12 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
             if is_train:
                 train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
                 train_labels = torch.hstack((train_labels, labels.cpu()))
-            # cache test outputs
-            if val_is_test and not is_train:
-                test_embeds = torch.vstack((test_embeds, embeds[:, 0].cpu()))
-                test_labels = torch.hstack((test_labels, labels.cpu()))
-            # compute validation accuracy
             else:
+                # cache test outputs
+                if val_is_test:
+                    test_embeds = torch.vstack((test_embeds, embeds[:, 0].cpu()))
+                    test_labels = torch.hstack((test_labels, labels.cpu()))
+                # compute validation accuracy
                 av_acc_top_1.update(test_contrastive_acc(
                     train_embeds.cuda(), embeds[:, 0].cuda(),
                     train_labels.cuda(), labels.cuda()).item(), bsz)
