@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 
 from main_ce import set_loader
@@ -10,8 +12,9 @@ if __name__ == "__main__":
     opt.valid_split = 0
 
     # edit this section to set model and dataset
-    model_loc = "save/SupCon/EDIT/EDIT.pth"
-    opt.dataset = "save/SupCon/EDIT/last.pth"
+    model_loc = Path("save/SupCon/EDIT/EDIT.pth")
+    opt.dataset = "EDIT"
+    opt.save_folder = model_loc.parent()
 
     train_loader, _, test_loader = set_loader(opt, contrast_trans=True, for_test=True)
     model = set_model(opt).cuda()
