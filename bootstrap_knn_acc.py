@@ -63,7 +63,7 @@ if __name__ == "__main__":
                 torch.load(out_folder / "test_labels.pth"),
                 k
             )
-            y_true = torch.load(out_folder / "labels.pth")
+            y_true = torch.load(out_folder / "test_labels.pth")
             print(out_folder)
             print("Means, 95% CI Low, 95% CI High")
             metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(y_pred, y_true, accuracy)
