@@ -45,7 +45,8 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'cifar2', 'imagenet100', 'imagenet'],
+                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
+                                 'aircraft', 'cars', 'path'],
                         help='dataset')
 
     # other setting
@@ -101,6 +102,10 @@ def parse_option():
         opt.n_cls = 100
     elif opt.dataset == 'imagenet':
         opt.n_cls = 1000
+    elif opt.dataset == 'aircraft':
+        opt.n_cls = 102
+    elif opt.dataset == 'cars':
+        opt.n_cls = 196
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
 
