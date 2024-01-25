@@ -37,8 +37,6 @@ class SINCERELoss(nn.Module):
         in_numer[torch.eye(in_numer.shape[0], dtype=bool)] = False
         # delete same_label so don't need to copy for in_numer
         del same_label
-        # count numerator terms for averaging (B,)
-        numer_count = in_numer.sum(dim=0)
         # numerator activations with others zeroed (B, B)
         numer_logits = torch.zeros_like(logits)
         numer_logits[in_numer] = logits[in_numer]
@@ -51,8 +49,8 @@ class SINCERELoss(nn.Module):
         # cross entropy loss of each positive pair with the logsumexp of the negative classes (B, B)
         # entries not in numerator set to 0
         ce = -1 * (numer_logits - log_denom)
-        # take average over rows with entry count then average over batch
-        loss = torch.sum(ce / numer_count) / ce.shape[0]
+        # take sum over rows with entry count then average over batch
+        loss = torch.sum(ce) / ce.shape[0]
         return loss
 
 
