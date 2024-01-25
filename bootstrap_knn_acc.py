@@ -50,7 +50,11 @@ if __name__ == "__main__":
                    Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_28/"),  # noqa: E501
                    Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_31/"),  # noqa: E501
                    Path("save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_18/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_20/"),]  # noqa: E501
+                   Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_20/"),  # noqa: E501
+                   Path("save/SupCon/cars_models/SINCERE_cars_resnet50_lr_1.0_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_24-15_29_37/"),  # noqa: E501
+                   Path("save/SupCon/cars_models/SupCon_cars_resnet50_lr_1.0_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_24-15_29_43/"),  # noqa: E501
+                   Path("save/SupCon/aircraft_models/SINCERE_aircraft_resnet50_lr_0.85_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_24-20_32_11/"),  # noqa: E501
+                   Path("save/SupCon/aircraft_models/SupCon_aircraft_resnet50_lr_0.85_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_24-20_32_11/")]  # noqa: E501
     for k in [1, 5]:
         print(f"{k}NN Evaluation:")
         b_scores_cache = []
