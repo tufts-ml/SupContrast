@@ -48,6 +48,8 @@ def parse_option():
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
                                  'aircraft', 'cars', 'path'],
                         help='dataset')
+    parser.add_argument('--size', type=int, default=32,
+                        help='size of images after resizing')
 
     # other setting
     parser.add_argument('--cosine', action='store_true',
@@ -112,6 +114,9 @@ def parse_option():
     opt.model_path = './save/linear/{}_models'.format(opt.dataset)
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
+
+    # no validation set for linear probing
+    opt.valid_split = 0
 
     return opt
 
@@ -276,7 +281,7 @@ def main():
     opt = parse_option()
 
     # build data loader
-    train_loader, val_loader = set_loader(opt)
+    train_loader, _, val_loader = set_loader(opt, contrast_trans=False)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
