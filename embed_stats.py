@@ -139,33 +139,30 @@ def expected_bound(pair_mat, labels, temp=0.1):
     return mean_bound.item()
 
 
-def pred_dict(train_embeds, train_labels, pred_embeds, pred_labels):
-    """Get vectors about 1NN predictions on pred set paseed on training set
+def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
+    """Get vectors about 1NN predictions on test set based on training set
 
     Args:
         train_embeds (torch.Tensor): (N1, D) embeddings of N1 images, normalized over D dimension.
         train_labels (torch.tensor): (N1,) integer class labels.
-        pred_embeds (torch.Tensor): (N2, D) embeddings of N1 images, normalized over D dimension.
-        pred_labels (torch.tensor): (N2,) integer class labels.
+        test_embeds (torch.Tensor): (N2, D) embeddings of N1 images, normalized over D dimension.
+        test_labels (torch.tensor): (N2,) integer class labels.
 
     Returns:
         dict: target_sim, target_label, noise_sim, noise_label, and nn_is_target tensors
     """
     # calculate logits (N2, N1)
-    logits = torch.empty((len(pred_labels), len(train_labels)))
-    # break up computation for each image for less memory usage
-    for i in range(len(pred_labels)):
-        logits[i] = pred_embeds[i] @ train_embeds.T
+    logits = test_embeds @ train_embeds.T
     # calculate similarity for NN with same class
-    target_mask = torch.logical_and(train_labels == pred_labels, logits < 1)
-    target_sim = torch.max(logits[:, target_mask], dim=1)[0]
+    target_sim = torch.max(logits[train_labels.unsqueeze(0) == test_labels.unsqueeze(1)], dim=1)[0]
     # calculate similarity for NN with different class
-    noise_sim, noise_nn_ind = torch.max(logits[:, train_labels != pred_labels], dim=1)
+    noise_sim, noise_nn_ind = torch.max(
+        logits[train_labels.unsqueeze(0) != test_labels.unsqueeze(1)], dim=1)
     # which label that NN has
     noise_label = train_labels[noise_nn_ind]
     return {
         "target_sim": target_sim,  # similarity to NN with same class
-        "target_label": pred_labels,  # which label the target is
+        "target_label": test_labels,  # which label the target is
         "noise_sim": noise_sim,  # similarity to NN with different class
         "noise_label": noise_label,  # which label the NN with different class has
         "nn_is_target": target_sim > noise_sim,
