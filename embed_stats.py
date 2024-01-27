@@ -152,7 +152,10 @@ def pred_dict(train_embeds, train_labels, pred_embeds, pred_labels):
         dict: target_sim, target_label, noise_sim, noise_label, and nn_is_target tensors
     """
     # calculate logits (N2, N1)
-    logits = pred_embeds @ train_embeds.T
+    logits = torch.empty((len(pred_labels), len(train_labels)))
+    # break up computation for each image for less memory usage
+    for i in range(len(pred_labels)):
+        logits[i] = pred_embeds[i] @ train_embeds.T
     # calculate similarity for NN with same class
     target_mask = torch.logical_and(train_labels == pred_labels, logits < 1)
     target_sim = torch.max(logits[:, target_mask], dim=1)[0]
@@ -183,15 +186,16 @@ if __name__ == "__main__":
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
-        # get prediction data for train to train and train to test
-        # TODO update for test set
-        if not (out_folder / "train_pred_dict.pth").exists():
+        # get prediction data for test with 1NN on train
+        if not (out_folder / "test_pred_dict.pth").exists():
             train_embeds = torch.load(out_folder / "train_embeds.pth")
             train_labels = torch.load(out_folder / "train_labels.pth")
-            train_pred_dict = pred_dict(train_embeds, train_labels, train_embeds, train_labels)
-            torch.save(train_pred_dict, out_folder / "train_pred_dict.pth")
+            test_embeds = torch.load(out_folder / "test_embeds.pth")
+            test_labels = torch.load(out_folder / "test_labels.pth")
+            test_pred_dict = pred_dict(train_embeds, train_labels, test_embeds, test_labels)
+            torch.save(test_pred_dict, out_folder / "test_pred_dict.pth")
         else:
-            train_pred_dict = torch.load(out_folder / "train_pred_dict.pth")
+            test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
         # datasets to skip following steps for
         if "cifar100" in out_folder.name or "imagenet100" in out_folder.name:
             continue
@@ -203,7 +207,7 @@ if __name__ == "__main__":
             # CIFAR-2 labels
             class_labels = ('Cat', 'Dog')
         # paired similarity histogram
-        pair_sim_hist(train_pred_dict, train_labels, class_labels, out_folder)
+        pair_sim_hist(test_pred_dict, train_labels, class_labels, out_folder)
         # # paired similarity ROC and PR curves
         # pair_sim_curves(pair_mat, labels, class_labels, out_folder)
         # # cosine similarity confusion matrix
