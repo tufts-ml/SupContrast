@@ -156,11 +156,11 @@ def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
     # calculate similarity for NN with same class
     target_sim = torch.max(
         logits.masked_fill(train_labels.unsqueeze(0) == test_labels.unsqueeze(1), logits.min()),
-        dim=1)
-    # calculate similarity for NN with different class, with no "dim=" to get argmax too
+        dim=1)[0]
+    # calculate similarity for NN with different class
     noise_sim, noise_nn_ind = torch.max(
         logits.masked_fill(train_labels.unsqueeze(0) == test_labels.unsqueeze(1), logits.min()),
-        1)
+        dim=1)
     # which label that NN has
     noise_label = train_labels[noise_nn_ind]
     return {
