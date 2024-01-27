@@ -5,17 +5,6 @@ import torch
 from torch.nn.functional import cosine_similarity
 
 
-def cos_sim_per_class(embeds, labels):
-    cos_dists = torch.empty((0,))
-    for label in torch.unique(labels):
-        l_embeds = embeds[labels == label]
-        cos_dist_mat = cosine_similarity(l_embeds.unsqueeze(0), l_embeds.unsqueeze(1), dim=2)
-        # remove diagonal and average
-        cos_dist = torch.mean(cos_dist_mat[~torch.eye(cos_dist_mat.shape[0], dtype=bool)])
-        cos_dists = torch.hstack((cos_dists, cos_dist))
-    return cos_dists
-
-
 def cos_sim_conf_mat(embeds, labels):
     n_labels = len(torch.unique(labels))
     conf_mat = torch.empty((n_labels, n_labels))
@@ -57,22 +46,23 @@ def pair_sim_mat(embeds):
 
 
 def pair_mat_to_target_noise(pair_mat, labels, target_label):
-    # get similarities from target distribution
+    # get top similarity from target distribution to target distribution
     target_mask = labels == target_label
     target_sim = pair_mat[target_mask][:, target_mask]
     # remove diagonal entries and flatten
     target_sim = target_sim[~torch.eye(target_sim.shape[0], dtype=bool)]
-    # get similarities from noise distribution
+    # get top similarity from target distribution to noise distribution
     noise_sim = pair_mat[target_mask][:, ~target_mask].flatten()
     return target_sim, noise_sim
 
 
-def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
-    fig_folder = Path("figures/hist")
+def pair_sim_hist(pred_dict, labels, class_labels, out_folder):
+    fig_folder = Path("figures/hist") / out_folder.name
     fig_folder.mkdir(exist_ok=True)
     n_labels = len(torch.unique(labels))
     for label in range(n_labels):
-        target_sim, noise_sim = pair_mat_to_target_noise(pair_mat, labels, label)
+        target_sim = pred_dict["target_sim"][pred_dict["target_label"] == label]
+        noise_sim = pred_dict["noise_sim"][pred_dict["target_label"] == label]
         # plot histogram and save
         fig, ax = plt.subplots()
         sns.histplot(
@@ -87,8 +77,8 @@ def pair_sim_hist(pair_mat, labels, class_labels, out_folder):
         else:
             ax.set_xlim(0.15, 1)
         ax.set_ylim(0, .085)
-        ax.set_title("SINCERE Loss" if "new" in out_folder.name else "SupCon Loss")
-        fig.savefig(fig_folder / (out_folder.name + "_" + class_labels[label].lower() + ".pdf"))
+        ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
+        fig.savefig(fig_folder / (class_labels[label].lower() + ".pdf"))
         plt.close()
 
 
@@ -149,6 +139,36 @@ def expected_bound(pair_mat, labels, temp=0.1):
     return mean_bound.item()
 
 
+def pred_dict(train_embeds, train_labels, pred_embeds, pred_labels):
+    """Get vectors about 1NN predictions on pred set paseed on training set
+
+    Args:
+        train_embeds (torch.Tensor): (N1, D) embeddings of N1 images, normalized over D dimension.
+        train_labels (torch.tensor): (N1,) integer class labels.
+        pred_embeds (torch.Tensor): (N2, D) embeddings of N1 images, normalized over D dimension.
+        pred_labels (torch.tensor): (N2,) integer class labels.
+
+    Returns:
+        dict: target_sim, target_label, noise_sim, noise_label, and nn_is_target tensors
+    """
+    # calculate logits (N2, N1)
+    logits = pred_embeds @ train_embeds.T
+    # calculate similarity for NN with same class
+    target_mask = torch.logical_and(train_labels == pred_labels, logits < 1)
+    target_sim = torch.max(logits[:, target_mask], dim=1)[0]
+    # calculate similarity for NN with different class
+    noise_sim, noise_nn_ind = torch.max(logits[:, train_labels != pred_labels], dim=1)
+    # which label that NN has
+    noise_label = train_labels[noise_nn_ind]
+    return {
+        "target_sim": target_sim,  # similarity to NN with same class
+        "target_label": pred_labels,  # which label the target is
+        "noise_sim": noise_sim,  # similarity to NN with different class
+        "noise_label": noise_label,  # which label the NN with different class has
+        "nn_is_target": target_sim > noise_sim,
+    }
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -163,15 +183,17 @@ if __name__ == "__main__":
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
-        # cosine similarity pair matrix
-        if not (out_folder / "train_pair_mat.pth").exists():
-            embeds = torch.load(out_folder / "train_embeds.pth")
-            pair_mat = pair_sim_mat(embeds)
-            torch.save(pair_mat, out_folder / "train_pair_mat.pth")
+        # get prediction data for train to train and train to test
+        # TODO update for test set
+        if not (out_folder / "train_pred_dict.pth").exists():
+            train_embeds = torch.load(out_folder / "train_embeds.pth")
+            train_labels = torch.load(out_folder / "train_labels.pth")
+            train_pred_dict = pred_dict(train_embeds, train_labels, train_embeds, train_labels)
+            torch.save(train_pred_dict, out_folder / "train_pred_dict.pth")
         else:
-            pair_mat = torch.load(out_folder / "train_pair_mat.pth")
-        labels = torch.load(out_folder / "train_labels.pth")
-        if "cifar100" in out_folder.name:
+            train_pred_dict = torch.load(out_folder / "train_pred_dict.pth")
+        # datasets to skip following steps for
+        if "cifar100" in out_folder.name or "imagenet100" in out_folder.name:
             continue
         if "cifar10" in out_folder.name:
             # CIFAR-10 labels
@@ -181,16 +203,16 @@ if __name__ == "__main__":
             # CIFAR-2 labels
             class_labels = ('Cat', 'Dog')
         # paired similarity histogram
-        pair_sim_hist(pair_mat, labels, class_labels, out_folder)
-        # paired similarity ROC and PR curves
-        pair_sim_curves(pair_mat, labels, class_labels, out_folder)
-        # cosine similarity confusion matrix
-        if not (out_folder / "train_conf_mat.pth").exists():
-            embeds = torch.load(out_folder / "train_embeds.pth")
-            conf_mat = cos_sim_conf_mat(embeds, labels)
-            torch.save(conf_mat, out_folder / "train_conf_mat.pth")
-        else:
-            conf_mat = torch.load(out_folder / "train_conf_mat.pth")
-        print(conf_mat)
-        plot_conf_mat(conf_mat, class_labels)
+        pair_sim_hist(train_pred_dict, train_labels, class_labels, out_folder)
+        # # paired similarity ROC and PR curves
+        # pair_sim_curves(pair_mat, labels, class_labels, out_folder)
+        # # cosine similarity confusion matrix
+        # if not (out_folder / "train_conf_mat.pth").exists():
+        #     embeds = torch.load(out_folder / "train_embeds.pth")
+        #     conf_mat = cos_sim_conf_mat(embeds, labels)
+        #     torch.save(conf_mat, out_folder / "train_conf_mat.pth")
+        # else:
+        #     conf_mat = torch.load(out_folder / "train_conf_mat.pth")
+        # print(conf_mat)
+        # plot_conf_mat(conf_mat, class_labels)
         print()
