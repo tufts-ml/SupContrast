@@ -65,11 +65,12 @@ def pair_sim_hist(pred_dict, class_labels, out_folder):
         noise_sim = pred_dict["noise_sim"][pred_dict["target_label"] == label]
         # plot histogram and save
         fig, ax = plt.subplots()
-        sns.histplot(
+        sns_ax = sns.histplot(
             x=torch.hstack((target_sim, noise_sim)),
             hue=[class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
-            ax=ax, bins=100, element="step", stat="proportion",
+            ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
             common_bins=True, common_norm=False)
+        sns.move_legend(sns_ax, "upper left")
         ax.set_xlabel("Cosine Similarity")
         ax.set_ylabel("Test Set Proportion")
         ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
