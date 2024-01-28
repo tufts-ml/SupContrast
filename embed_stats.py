@@ -56,10 +56,10 @@ def pair_mat_to_target_noise(pair_mat, labels, target_label):
     return target_sim, noise_sim
 
 
-def pair_sim_hist(pred_dict, labels, class_labels, out_folder):
+def pair_sim_hist(pred_dict, class_labels, out_folder):
     fig_folder = Path("figures/hist") / out_folder.name
     fig_folder.mkdir(exist_ok=True)
-    n_labels = len(torch.unique(labels))
+    n_labels = len(torch.unique(pred_dict["target_label"]))
     for label in range(n_labels):
         target_sim = pred_dict["target_sim"][pred_dict["target_label"] == label]
         noise_sim = pred_dict["noise_sim"][pred_dict["target_label"] == label]
@@ -68,15 +68,10 @@ def pair_sim_hist(pred_dict, labels, class_labels, out_folder):
         sns.histplot(
             x=torch.hstack((target_sim, noise_sim)),
             hue=[class_labels[label]] * len(target_sim) + ["Noise"] * len(noise_sim),
-            ax=ax, binrange=[0, 1], binwidth=1/100, element="step", stat="proportion",
+            ax=ax, bins=100, element="step", stat="proportion",
             common_bins=True, common_norm=False)
         ax.set_xlabel("Cosine Similarity")
         ax.set_ylabel("Test Set Proportion")
-        if "cifar2" in out_folder.name:
-            ax.set_xlim(0, 1)
-        else:
-            ax.set_xlim(0.15, 1)
-        ax.set_ylim(0, .085)
         ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
         fig.savefig(fig_folder / (class_labels[label].lower() + ".pdf"))
         plt.close()
@@ -159,7 +154,7 @@ def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
         dim=1)[0]
     # calculate similarity for NN with different class
     noise_sim, noise_nn_ind = torch.max(
-        logits.masked_fill(train_labels.unsqueeze(0) == test_labels.unsqueeze(1), logits.min()),
+        logits.masked_fill(train_labels.unsqueeze(0) != test_labels.unsqueeze(1), logits.min()),
         dim=1)
     # which label that NN has
     noise_label = train_labels[noise_nn_ind]
@@ -207,7 +202,7 @@ if __name__ == "__main__":
             # CIFAR-2 labels
             class_labels = ('Cat', 'Dog')
         # paired similarity histogram
-        pair_sim_hist(test_pred_dict, train_labels, class_labels, out_folder)
+        pair_sim_hist(test_pred_dict, class_labels, out_folder)
         # # paired similarity ROC and PR curves
         # pair_sim_curves(pair_mat, labels, class_labels, out_folder)
         # # cosine similarity confusion matrix
