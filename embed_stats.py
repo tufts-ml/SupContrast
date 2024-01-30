@@ -143,6 +143,9 @@ if __name__ == "__main__":
             torch.save(test_pred_dict, out_folder / "test_pred_dict.pth")
         else:
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
+        # print median target and noise similarities
+        print(f"Median Target Similarity: {torch.median(test_pred_dict['target_sim'])}")
+        print(f"Median Noise Similarity: {torch.median(test_pred_dict['noise_sim'])}")
         # datasets to skip following steps for
         if "cifar100" in out_folder.name or "imagenet100" in out_folder.name:
             continue
