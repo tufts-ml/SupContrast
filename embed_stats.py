@@ -19,6 +19,7 @@ def pair_sim_hist(pred_dict, class_labels, out_folder):
             ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
             common_bins=True, common_norm=False)
         sns.move_legend(sns_ax, "upper left")
+        ax.set_ylim(0, 1)
         ax.set_xlabel("Cosine Similarity")
         ax.set_ylabel("Test Set Proportion")
         ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
