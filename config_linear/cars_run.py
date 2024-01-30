@@ -5,21 +5,21 @@ import subprocess
 launch_cmd = "cd ~/Git/SupContrast; nvidia-smi; pipenv run python main_linear.py"
 
 search_dict = {
-    "--batch_size": 512,
-    "--learning_rate": 5,
+    "--batch_size": 128,
+    "--learning_rate": [1e-4, 6.81e-4, 4.64e-3, 3.16e-2, .215, 1.47, 10],
+    "--valid_split": 0.1,
+    "--size": 224,
     "--dataset": "cars",
     "--ckpt": [
-        "save/SupCon/cars_models/SINCERE_cars_resnet50_lr_1.0_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_24-15_29_37/last.pth",  # noqa: E501
-        "save/SupCon/cars_models/SupCon_cars_resnet50_lr_1.0_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_24-15_29_43/last.pth",  # noqa: E501
         "save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_18/last.pth",  # noqa: E501
         "save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_20/last.pth",  # noqa: E501
     ],
 }
 
 slurm_dict = {
-    "-p": "ccgpu,gpu",
+    "-p": "hugheslab",
     "-t": "0-20:0:0",
-    "--gres": "gpu:a100:1",
+    "--gres": "gpu:rtx_a6000:1",
     "-c": 16,
     "-o": "~/Git/SupContrast/slurm_out/%A_%a.out",
 }
