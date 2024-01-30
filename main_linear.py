@@ -48,6 +48,8 @@ def parse_option():
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
                                  'aircraft', 'cars', 'path'],
                         help='dataset')
+    parser.add_argument('--valid_split', type=float, default=0,
+                        help="proportion of train data to use for validation set")
     parser.add_argument('--size', type=int, default=32,
                         help='size of images after resizing')
 
@@ -281,7 +283,7 @@ def main():
     opt = parse_option()
 
     # build data loader
-    train_loader, _, val_loader = set_loader(opt, contrast_trans=False)
+    train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
@@ -302,9 +304,13 @@ def main():
             epoch, time2 - time1, acc))
 
         # eval for one epoch
-        loss, val_acc = validate(val_loader, model, classifier, criterion, opt)
-        if val_acc > best_acc:
-            best_acc = val_acc
+        if val_loader is not None:
+            loss, val_acc = validate(val_loader, model, classifier, criterion, opt)
+            if val_acc > best_acc:
+                best_acc = val_acc
+        # print final accuracy for the test set evaluation run
+        elif epoch == opt.epochs:
+            validate(test_loader, model, classifier, criterion, opt)
 
     print('best accuracy: {:.2f}'.format(best_acc))
 
@@ -312,7 +318,7 @@ def main():
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
     save_model(model, optimizer, opt, opt.epochs, save_file)
-    cache_outputs(val_loader, model, classifier, opt)
+    cache_outputs(test_loader, model, classifier, opt)
 
 
 if __name__ == '__main__':
