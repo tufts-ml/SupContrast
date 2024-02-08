@@ -1,20 +1,22 @@
 from __future__ import print_function
 
-import os
-import sys
 import argparse
-import time
+import copy
+import os
 import math
+import sys
+import time
 
+from sklearn.model_selection import train_test_split
 import tensorboard_logger as tb_logger
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data import Subset
+from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import transforms, datasets
 
-from util import AverageMeter
-from util import adjust_learning_rate, warmup_learning_rate, accuracy
-from util import set_optimizer, save_model
+import sampler
+from util import AverageMeter, DoubleTransform, SubsetWithTargets, TwoCropTransform
+from util import adjust_learning_rate, warmup_learning_rate, accuracy, set_optimizer, save_model
 from networks.resnet_big import SupCEResNet
 
 
@@ -27,7 +29,7 @@ def parse_option():
                         help='save frequency')
     parser.add_argument('--batch_size', type=int, default=256,
                         help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=16,
+    parser.add_argument('--num_workers', type=int, default=8,
                         help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=500,
                         help='number of training epochs')
@@ -49,6 +51,8 @@ def parse_option():
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet'],
                         help='dataset')
+    parser.add_argument('--size', type=int, default=32,
+                        help='size of images after resizing')
 
     # other setting
     parser.add_argument('--cosine', action='store_true',
@@ -114,8 +118,8 @@ def parse_option():
     return opt
 
 
-def set_loader(opt):
-    # construct data loader
+def set_loader(opt, contrast_trans=False, for_test=False):
+    # dataset specific normalization
     if opt.dataset == 'cifar10':
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2023, 0.1994, 0.2010)
@@ -125,67 +129,165 @@ def set_loader(opt):
     elif opt.dataset == 'cifar2':
         mean = (0.4977, 0.4605, 0.4160)
         std = (0.2537, 0.2481, 0.2535)
+    elif opt.dataset == 'aircraft':
+        mean = (0.4804, 0.5115, 0.5348)
+        std = (0.1561, 0.1555, 0.1810)
+    elif opt.dataset == 'cars':
+        mean = (0.4707, 0.4601, 0.4549)
+        std = (0.2319, 0.2318, 0.2373)
     elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
+    elif opt.dataset == 'path':
+        mean = eval(opt.mean)
+        std = eval(opt.std)
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
     normalize = transforms.Normalize(mean=mean, std=std)
 
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        normalize,
-    ])
+    # contrastive data transforms
+    if contrast_trans:
+        # first image is non-augmented, second is lightly augmented
+        test_transform = DoubleTransform(
+            transforms.Compose([
+                transforms.Resize([opt.size, opt.size]),
+                transforms.ToTensor(),
+                normalize,
+            ]),
+            transforms.Compose([
+                transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ]))
+        if for_test:
+            train_transform = test_transform
+        else:
+            # both images heavily augmented
+            train_transform = TwoCropTransform(transforms.Compose([
+                transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomApply([
+                    transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
+                ], p=0.8),
+                transforms.RandomGrayscale(p=0.2),
+                transforms.ToTensor(),
+                normalize,
+            ]))
+    # non-contrastive data transforms
+    else:
+        train_transform = transforms.Compose([
+            transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ])
+        test_transform = transforms.Compose([
+            transforms.Resize([opt.size, opt.size]),
+            transforms.ToTensor(),
+            normalize,
+        ])
 
-    val_transform = transforms.Compose([
-        transforms.Resize([32, 32]),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
+    # construct dataset
     if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
         train_dataset = datasets.CIFAR10(root=opt.data_folder,
                                          transform=train_transform,
                                          download=True)
-        val_dataset = datasets.CIFAR10(root=opt.data_folder,
-                                       train=False,
-                                       transform=val_transform)
+        test_dataset = datasets.CIFAR10(root=opt.data_folder,
+                                        train=False,
+                                        transform=test_transform)
+        # produce CIFAR-2 (cats vs dogs) from CIFAR-10
         if opt.dataset == 'cifar2':
             classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
             cls_idx_map = {int(classes[0]): 0, int(classes[1]): 1}
-            train_indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
+            train_ind = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
             train_dataset.target_transform = lambda x: cls_idx_map[x]
-            train_dataset = Subset(train_dataset, train_indices)
-            val_indices = torch.where(torch.isin(torch.Tensor(val_dataset.targets), classes))[0]
-            val_dataset.target_transform = lambda x: cls_idx_map[x]
-            val_dataset = Subset(val_dataset, val_indices)
+            train_dataset = SubsetWithTargets(train_dataset, train_ind)
+            test_ind = torch.where(torch.isin(torch.Tensor(test_dataset.targets), classes))[0]
+            test_dataset.target_transform = lambda x: cls_idx_map[x]
+            test_dataset = SubsetWithTargets(test_dataset, test_ind)
     elif opt.dataset == 'cifar100':
         train_dataset = datasets.CIFAR100(root=opt.data_folder,
                                           transform=train_transform,
                                           download=True)
-        val_dataset = datasets.CIFAR100(root=opt.data_folder,
-                                        train=False,
-                                        transform=val_transform)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
+        test_dataset = datasets.CIFAR100(root=opt.data_folder,
+                                         train=False,
+                                         transform=test_transform)
+    elif opt.dataset == 'aircraft':
+        train_dataset = datasets.FGVCAircraft(root=opt.data_folder,
+                                              split="trainval",
+                                              transform=train_transform,
+                                              download=True)
+        train_dataset.targets = train_dataset._labels
+        test_dataset = datasets.FGVCAircraft(root=opt.data_folder,
+                                             split="test",
+                                             transform=test_transform)
+        test_dataset.targets = test_dataset._labels
+    elif opt.dataset == 'cars':
+        train_dataset = datasets.StanfordCars(root=opt.data_folder,
+                                              transform=train_transform)
+        train_dataset.targets = [label for _, label in train_dataset._samples]
+        test_dataset = datasets.StanfordCars(root=opt.data_folder,
+                                             split="test",
+                                             transform=test_transform)
+        test_dataset.targets = [label for _, label in test_dataset._samples]
+    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet' or opt.dataset == 'path':
         train_dataset = datasets.ImageFolder(root=opt.data_folder,
                                              transform=train_transform)
-        val_dataset = datasets.ImageFolder(root=opt.data_folder + "../val/",
-                                           transform=val_transform)
+        test_dataset = datasets.ImageFolder(root=opt.data_folder + "../val/",
+                                            transform=test_transform)
     else:
         raise ValueError(opt.dataset)
 
-    train_sampler = None
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(
-            train_sampler is None),
-        num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=256, shuffle=False,
-        num_workers=8, pin_memory=True)
+    if opt.valid_split == 0:
+        valid_loader = None
+    # split validation off of train
+    else:
+        old_train = train_dataset
+        old_val = copy.deepcopy(train_dataset)
+        old_val.transform = test_transform
+        train_ind, valid_ind = train_test_split(
+            range(len(old_train)), stratify=old_train.targets, test_size=opt.valid_split,
+            random_state=12345)
+        train_dataset = SubsetWithTargets(old_train, train_ind)
+        valid_dataset = SubsetWithTargets(old_val, valid_ind)
+        # construct validation data loader
+        if "device" in opt:
+            valid_loader = DataLoader(
+                valid_dataset, num_workers=opt.num_workers, pin_memory=True,
+                batch_size=opt.batch_size,
+                sampler=DistributedSampler(valid_dataset) if "device" in opt else None)
+        else:
+            valid_loader = DataLoader(
+                valid_dataset, num_workers=opt.num_workers, pin_memory=True,
+                batch_sampler=sampler.my_sampler(valid_dataset, opt.batch_size))
 
-    return train_loader, val_loader
+    # construct train and test data loaders
+    if "device" in opt:
+        train_loader = DataLoader(
+            train_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size,
+            sampler=DistributedSampler(train_dataset) if "device" in opt else None)
+        test_loader = DataLoader(
+            test_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size,
+            sampler=DistributedSampler(test_dataset) if "device" in opt else None)
+    elif not for_test:
+        train_loader = DataLoader(
+            train_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_sampler=sampler.my_sampler(train_dataset, opt.batch_size))
+        test_loader = DataLoader(
+            test_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_sampler=sampler.my_sampler(test_dataset, opt.batch_size))
+    else:
+        train_loader = DataLoader(
+            train_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size)
+        test_loader = DataLoader(
+            test_dataset, num_workers=opt.num_workers, pin_memory=True,
+            batch_size=opt.batch_size)
+
+    return train_loader, valid_loader, test_loader
 
 
 def set_model(opt):

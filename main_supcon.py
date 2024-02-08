@@ -8,16 +8,15 @@ import math
 
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data.dataset import Subset
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms, datasets
 
-from util import TwoCropTransform, AverageMeter
-from util import adjust_learning_rate, warmup_learning_rate
-from util import set_optimizer, save_model
+from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive_acc_knn
+from main_ce import set_loader
+from util import AverageMeter
+from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
-from revised_losses import MultiviewSINCERELoss, InfoNCELoss
+from revised_losses import MultiviewSINCERELoss
 
 
 def parse_option():
@@ -50,8 +49,10 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
-                                 'path'],
+                                 'aircraft', 'cars', 'path'],
                         help='dataset')
+    parser.add_argument('--valid_split', type=float, default=0,
+                        help="proportion of train data to use for validation set")
     parser.add_argument('--mean', type=str,
                         help='mean of dataset in path in form of str tuple')
     parser.add_argument('--std', type=str,
@@ -59,13 +60,11 @@ def parse_option():
     parser.add_argument('--data_folder', type=str,
                         default=None, help='path to custom dataset')
     parser.add_argument('--size', type=int, default=32,
-                        help='parameter for RandomResizedCrop')
+                        help='size of images after resizing')
 
     # method
     parser.add_argument('--method', type=str, default='SupCon',
-                        choices=['SupCon', 'SimCLR'], help='choose method')
-    parser.add_argument('--implementation', type=str, default='old',
-                        choices=['old', 'new'], help='loss implemenation version')
+                        choices=['SINCERE', 'SupCon', 'SimCLR'], help='choose method')
 
     # temperature
     parser.add_argument('--temp', type=float, default=0.07,
@@ -103,8 +102,8 @@ def parse_option():
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
-    opt.model_name = '{}_{}_{}_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}'.\
-        format(opt.method, opt.implementation, opt.dataset, opt.model, opt.learning_rate,
+    opt.model_name = '{}_{}_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}'.\
+        format(opt.method, opt.dataset, opt.model, opt.learning_rate,
                opt.weight_decay, opt.batch_size, opt.temp, opt.trial)
 
     if opt.cosine:
@@ -123,6 +122,8 @@ def parse_option():
                 1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
         else:
             opt.warmup_to = opt.learning_rate
+    # add time to model name
+    opt.model_name += "_" + time.strftime("%Y_%m_%d-%H_%M_%S")
 
     opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
     os.makedirs(opt.tb_folder, exist_ok=True)
@@ -130,111 +131,46 @@ def parse_option():
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
+    # write args to log
+    print(opt)
     return opt
-
-
-def set_loader(opt):
-    # construct data loader
-    if opt.dataset == 'cifar10':
-        mean = (0.4914, 0.4822, 0.4465)
-        std = (0.2023, 0.1994, 0.2010)
-    elif opt.dataset == 'cifar100':
-        mean = (0.5071, 0.4867, 0.4408)
-        std = (0.2675, 0.2565, 0.2761)
-    elif opt.dataset == 'cifar2':
-        mean = (0.4977, 0.4605, 0.4160)
-        std = (0.2537, 0.2481, 0.2535)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
-        mean = (0.485, 0.456, 0.406)
-        std = (0.229, 0.224, 0.225)
-    elif opt.dataset == 'path':
-        mean = eval(opt.mean)
-        std = eval(opt.std)
-    else:
-        raise ValueError('dataset not supported: {}'.format(opt.dataset))
-    normalize = transforms.Normalize(mean=mean, std=std)
-
-    train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomApply([
-            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
-        ], p=0.8),
-        transforms.RandomGrayscale(p=0.2),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    if opt.dataset == 'cifar10' or opt.dataset == 'cifar2':
-        train_dataset = datasets.CIFAR10(root=opt.data_folder,
-                                         transform=TwoCropTransform(
-                                             train_transform),
-                                         download=True)
-        if opt.dataset == 'cifar2':
-            classes = torch.Tensor([train_dataset.class_to_idx[name] for name in ["cat", "dog"]])
-            indices = torch.where(torch.isin(torch.Tensor(train_dataset.targets), classes))[0]
-            train_dataset = Subset(train_dataset, indices)
-    elif opt.dataset == 'cifar100':
-        train_dataset = datasets.CIFAR100(root=opt.data_folder,
-                                          transform=TwoCropTransform(
-                                              train_transform),
-                                          download=True)
-    elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet' or opt.dataset == 'path':
-        train_dataset = datasets.ImageFolder(root=opt.data_folder,
-                                             transform=TwoCropTransform(train_transform))
-    else:
-        raise ValueError(opt.dataset)
-
-    train_sampler = torch.utils.data.DistributedSampler(train_dataset) if "device" in opt else None
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
-        num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
-
-    return train_loader
 
 
 def set_model(opt):
     model = SupConResNet(name=opt.model)
-    if opt.implementation == 'old':
-        # original implementation does not set base_temperature, but setting here to make
-        # hyperparameters comparable between implementations
-        criterion = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
-    else:
-        if opt.method == 'SupCon':
-            criterion = MultiviewSINCERELoss(temperature=opt.temp)
-        elif opt.method == 'SimCLR':
-            criterion = InfoNCELoss(temperature=opt.temp)
-
     if torch.cuda.is_available():
         if "device" not in opt:
             model = model.cuda()
-            criterion = criterion.cuda()
         else:
             model = model.to(opt.device)
-            criterion = criterion.to(opt.device)
         if torch.cuda.device_count() > 1:
             model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
         cudnn.benchmark = True
+    return model
 
-    return model, criterion
 
-
-def train(train_loader, model, criterion, optimizer, epoch, opt):
+def train(train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
+    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
+    # original implementation does not set base_temperature, but setting here to make
+    # hyperparameters comparable between implementations
+    supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
     model.train()
 
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
+    av_batch_time = AverageMeter()
+    av_data_time = AverageMeter()
+    av_sincere = AverageMeter()
+    av_supcon = AverageMeter()
+    av_acc = AverageMeter()
 
     end = time.time()
     # change reshuffle split of data across GPUs
     if "device" in opt:
         train_loader.sampler.set_epoch(epoch)
-    for idx, (images, labels) in enumerate(train_loader):
-        data_time.update(time.time() - end)
+    for idx, (image_aug_tuple, labels) in enumerate(train_loader):
+        av_data_time.update(time.time() - end)
 
-        images = torch.cat([images[0], images[1]], dim=0)
+        images = torch.cat([image_aug_tuple[0], image_aug_tuple[1]], dim=0)
         if torch.cuda.is_available():
             if "device" not in opt:
                 images = images.cuda(non_blocking=True)
@@ -247,51 +183,181 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
-        # compute loss
+        # forward
+        with torch.set_grad_enabled(True):
+            flat_embeds = model(images)
+        # reshape from (2B, D) to (B, 2, D)
+        embeds = torch.cat(
+            [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
+        # compute losses
         # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
         # see MoCo v3 for full batch size parallelization with torch's all_gather
-        features = model(images)
-        f1, f2 = torch.split(features, [bsz, bsz], dim=0)
-        features = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
-        if opt.method == 'SupCon':
-            loss = criterion(features, labels)
-        elif opt.method == 'SimCLR':
-            loss = criterion(features)
+        sincere_loss = sincere_loss_func(embeds, labels)
+        supcon_loss = supcon_loss_func(embeds, labels)
+        # update averages
+        av_sincere.update(sincere_loss.item(), bsz)
+        av_supcon.update(supcon_loss.item(), bsz)
+        # SGD
+        # always zero in case grad accidentally calculated for non-train epoch
+        optimizer.zero_grad()
+        if opt.method == 'SINCERE':
+            sincere_loss.backward()
+        elif opt.method == 'SupCon':
+            supcon_loss.backward()
         else:
             raise ValueError('contrastive method not supported: {}'.
                              format(opt.method))
-
-        # update metric
-        losses.update(loss.item(), bsz)
-
-        # SGD
-        optimizer.zero_grad()
-        loss.backward()
         optimizer.step()
+        # compute accuracy
+        with torch.no_grad():
+            acc = contrastive_acc(embeds, labels)
+            av_acc.update(acc.item(), bsz)
 
         # measure elapsed time
-        batch_time.update(time.time() - end)
+        av_batch_time.update(time.time() - end)
         end = time.time()
 
         # print info
         if (idx + 1) % opt.print_freq == 0:
-            print('Train: [{0}][{1}/{2}]\t'
+            print('Epoch: [{0}][{1}/{2}]\t'
                   'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'loss {loss.val:.3f} ({loss.avg:.3f})'.format(
-                      epoch, idx + 1, len(train_loader), batch_time=batch_time,
-                      data_time=data_time, loss=losses))
+                  'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
+                    epoch, idx + 1, len(train_loader), batch_time=av_batch_time,
+                    data_time=av_data_time))
             sys.stdout.flush()
 
-    return losses.avg
+    # tensorboard logger
+    if "device" not in opt or opt.device == 0:
+        log_folder = "train/"
+        logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
+        logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
+        logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+    # log values independent of forward passes
+    logger.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
+    return
+
+
+def valid(train_loader, valid_loader, model, epoch, opt, logger):
+    """validation"""
+    # loggger is given if valid_loader is validation set, otherwise is test set
+    val_is_test = logger is None
+
+    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
+    # original implementation does not set base_temperature, but setting here to make
+    # hyperparameters comparable between implementations
+    supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
+
+    # caches for data
+    train_embeds = torch.empty((0, 128))
+    train_labels = torch.empty((0,))
+    # caches for test data
+    if val_is_test:
+        test_embeds = torch.empty((0, 128))
+        test_labels = torch.empty((0,))
+
+    for i, loader in enumerate([train_loader, valid_loader]):
+        is_train = i == 0
+        model.eval()
+
+        av_batch_time = AverageMeter()
+        av_data_time = AverageMeter()
+        av_sincere = AverageMeter()
+        av_supcon = AverageMeter()
+        av_acc_top_1 = AverageMeter()
+        av_acc_top_5 = AverageMeter()
+
+        end = time.time()
+        # change reshuffle split of data across GPUs
+        if "device" in opt:
+            loader.sampler.set_epoch(epoch)
+        for idx, (image_aug_tuple, labels) in enumerate(loader):
+            av_data_time.update(time.time() - end)
+
+            images = torch.cat([image_aug_tuple[0], image_aug_tuple[1]], dim=0)
+            if torch.cuda.is_available():
+                if "device" not in opt:
+                    images = images.cuda(non_blocking=True)
+                    labels = labels.cuda(non_blocking=True)
+                else:
+                    images = images.to(opt.device, non_blocking=True)
+                    labels = labels.to(opt.device, non_blocking=True)
+            bsz = labels.shape[0]
+
+            # forward
+            with torch.no_grad():
+                flat_embeds = model(images)
+            # reshape from (2B, D) to (B, 2, D)
+            embeds = torch.cat(
+                [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
+            # cache train outputs
+            if is_train:
+                train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
+                train_labels = torch.hstack((train_labels, labels.cpu()))
+            else:
+                # cache test outputs
+                if val_is_test:
+                    test_embeds = torch.vstack((test_embeds, embeds[:, 0].cpu()))
+                    test_labels = torch.hstack((test_labels, labels.cpu()))
+                # compute validation accuracy
+                av_acc_top_1.update(test_contrastive_acc(
+                    train_embeds.cuda(), embeds[:, 0].cuda(),
+                    train_labels.cuda(), labels.cuda()).item(), bsz)
+                av_acc_top_5.update(test_contrastive_acc_knn(
+                    train_embeds.cuda(), embeds[:, 0].cuda(),
+                    train_labels.cuda(), labels.cuda(), 5).item(), bsz)
+            # compute losses (note there's no class balancing sampler for test)
+            # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
+            # see MoCo v3 for full batch size parallelization with torch's all_gather
+            sincere_loss = sincere_loss_func(embeds, labels)
+            supcon_loss = supcon_loss_func(embeds, labels)
+            # update averages
+            av_sincere.update(sincere_loss.item(), bsz)
+            av_supcon.update(supcon_loss.item(), bsz)
+
+            # measure elapsed time
+            av_batch_time.update(time.time() - end)
+            end = time.time()
+
+            # print info
+            if (idx + 1) % opt.print_freq == 0:
+                print('Epoch: [{0}][{1}/{2}]\t'
+                      'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
+                        epoch, idx + 1, len(loader), batch_time=av_batch_time,
+                        data_time=av_data_time))
+                sys.stdout.flush()
+    if "device" not in opt or opt.device == 0 and not is_train:
+        # tensorboard logger
+        if not val_is_test:
+            log_folder = "valid/"
+            logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
+            logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
+            logger.add_scalar(f"{log_folder}Top 1 Accuracy", av_acc_top_1.avg, epoch)
+            logger.add_scalar(f"{log_folder}Top 5 Accuracy", av_acc_top_5.avg, epoch)
+        else:
+            # print output
+            print(f"Test SINCERE: {av_sincere.avg}")
+            print(f"Test SupCon: {av_supcon.avg}")
+            print(f"Test Top 1 Accuracy: {av_acc_top_1.avg}")
+            print(f"Test Top 5 Accuracy: {av_acc_top_5.avg}")
+            # save caches
+            torch.save(train_embeds, os.path.join(opt.save_folder, "train_embeds.pth"))
+            torch.save(train_labels, os.path.join(opt.save_folder, "train_labels.pth"))
+            torch.save(test_embeds, os.path.join(opt.save_folder, "test_embeds.pth"))
+            torch.save(test_labels, os.path.join(opt.save_folder, "test_labels.pth"))
+
+
+def test(model, opt):
+    train_loader, _, test_loader = set_loader(opt, contrast_trans=True, for_test=True)
+    valid(train_loader, test_loader, model, 0, opt, None)
 
 
 def main(opt):
     # build data loader
-    train_loader = set_loader(opt)
+    train_loader, valid_loader, _ = set_loader(opt, contrast_trans=True)
 
-    # build model and criterion
-    model, criterion = set_model(opt)
+    # build model
+    model = set_model(opt)
 
     # build optimizer
     optimizer = set_optimizer(opt, model)
@@ -306,15 +372,14 @@ def main(opt):
 
         # train for one epoch
         time1 = time.time()
-        loss = train(train_loader, model, criterion, optimizer, epoch, opt)
+        train(train_loader, model, optimizer, epoch, opt, logger)
         time2 = time.time()
+        # use valid_loader if present
+        if epoch % 5 == 0 and valid_loader is not None:
+            valid(train_loader, valid_loader, model, epoch, opt, logger)
         print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
-        # tensorboard logger
-        if "device" not in opt or opt.device == 0:
-            logger.add_scalar('loss', loss, epoch)
-            logger.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-
+        # checkpoint
         if epoch % opt.save_freq == 0:
             save_file = os.path.join(
                 opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
@@ -324,6 +389,9 @@ def main(opt):
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
     save_model(model, optimizer, opt, opt.epochs, save_file)
+
+    # print test statistics
+    test(model, opt)
 
 
 def launch_parallel(rank, world_size):

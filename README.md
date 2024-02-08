@@ -27,7 +27,7 @@ PyTorch may require different versions depending on the machine it is running on
 ## Running
 
 The dataset defaults to CIFAR-10, but CIFAR-100 can be used by adding `--dataset cifar100`.
-The baseline SupCon loss can be used by using `--implementation old` instead of `--implementation new`.
+The baseline SupCon loss can be used by using `--method SupCon` instead of `--method SINCERE`.
  
 ### SINCERE Pretraining Stage:
 ```
@@ -35,7 +35,7 @@ pipenv run python main_supcon.py --batch_size 512 \
   --learning_rate 0.5 \
   --temp 0.1 \
   --cosine \
-  --implementation new
+  --method SINCERE
 ```
 
 ### Cross-Entropy Linear Finetuning Stage:

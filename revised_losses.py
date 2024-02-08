@@ -7,7 +7,7 @@ class SINCERELoss(nn.Module):
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, embeds: torch.tensor, labels: torch.tensor):
+    def forward(self, embeds: torch.Tensor, labels: torch.tensor):
         """Supervised InfoNCE REvisited loss with cosine distance
 
         Args:

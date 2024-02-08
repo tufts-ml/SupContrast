@@ -1,7 +1,7 @@
 import sklearn.metrics
 import torch
 
-import bootstrap_acc
+import bootstrap_lin_acc
 import embed_stats
 
 
@@ -67,5 +67,5 @@ if __name__ == "__main__":
         print("Accuracy Difference 95% CI for:")
         print(out_folders[i1])
         print(out_folders[i2])
-        print(bootstrap_acc.bootstrap_dif(b_scores_cache[i1], b_scores_cache[i2]))
+        print(bootstrap_lin_acc.bootstrap_dif(b_scores_cache[i1], b_scores_cache[i2]))
         print()
