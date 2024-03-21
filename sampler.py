@@ -62,7 +62,7 @@ class SamplerFactory:
         return WeightedFixedBatchSampler(class_samples_per_batch, class_idxs, n_batches)
 
     def _weight_classes(self, class_idxs, alpha):
-        class_sizes = np.asarray([len(idxs) for idxs in class_idxs])
+        class_sizes = np.asarray([idxs.size for idxs in class_idxs])
         n_samples = class_sizes.sum()
         n_classes = len(class_idxs)
 
@@ -192,13 +192,16 @@ class CircularList:
     """
     def __init__(self, items):
         self._items = items
-        self._mod = len(self._items)
+        self._mod = self._items.size
         self.shuffle()
 
     def shuffle(self):
-        np.random.shuffle(self._items)
+        if self._mod > 1:
+            np.random.shuffle(self._items)
 
     def __getitem__(self, key):
         if isinstance(key, slice):
             return [self[i] for i in range(key.start, key.stop)]
-        return self._items[key % self._mod]
+        if self._mod > 1:
+            return self._items[key % self._mod]
+        return self._items
