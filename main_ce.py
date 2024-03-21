@@ -51,6 +51,8 @@ def parse_option():
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet'],
                         help='dataset')
+    parser.add_argument('--valid_split', type=float, default=0,
+                        help="proportion of train data to use for validation set")
     parser.add_argument('--size', type=int, default=32,
                         help='size of images after resizing')
 
@@ -135,6 +137,18 @@ def set_loader(opt, contrast_trans=False, for_test=False):
     elif opt.dataset == 'cars':
         mean = (0.4707, 0.4601, 0.4549)
         std = (0.2319, 0.2318, 0.2373)
+    elif opt.dataset == 'food101':
+        mean = (0.5456, 0.4430, 0.3423)
+        std = (0.2096, 0.2186, 0.2165)
+    elif opt.dataset == 'pet':
+        mean = (0.4786, 0.4462, 0.3962)
+        std = (0.2073, 0.2042, 0.2053)
+    elif opt.dataset == 'dtd':
+        mean = (0.5301, 0.4734, 0.4243)
+        std = (0.1250, 0.1246, 0.1211)
+    elif opt.dataset == 'flowers':
+        mean = (0.4312, 0.3786, 0.2944)
+        std = (0.2385, 0.1858, 0.1986)
     elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet':
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
@@ -231,6 +245,46 @@ def set_loader(opt, contrast_trans=False, for_test=False):
                                              split="test",
                                              transform=test_transform)
         test_dataset.targets = [label for _, label in test_dataset._samples]
+    elif opt.dataset == 'food101':
+        train_dataset = datasets.Food101(root=opt.data_folder,
+                                         transform=train_transform,
+                                         download=True)
+        train_dataset.targets = train_dataset._labels
+        test_dataset = datasets.Food101(root=opt.data_folder,
+                                        split="test",
+                                        transform=test_transform,
+                                        download=True)
+        test_dataset.targets = test_dataset._labels
+    elif opt.dataset == 'pet':
+        train_dataset = datasets.OxfordIIITPet(root=opt.data_folder,
+                                               transform=train_transform,
+                                               download=True)
+        train_dataset.targets = train_dataset._labels
+        test_dataset = datasets.OxfordIIITPet(root=opt.data_folder,
+                                              split="test",
+                                              transform=test_transform,
+                                              download=True)
+        test_dataset.targets = test_dataset._labels
+    elif opt.dataset == 'dtd':
+        train_dataset = datasets.DTD(root=opt.data_folder,
+                                     transform=train_transform,
+                                     download=True)
+        train_dataset.targets = train_dataset._labels
+        test_dataset = datasets.DTD(root=opt.data_folder,
+                                    split="test",
+                                    transform=test_transform,
+                                    download=True)
+        test_dataset.targets = test_dataset._labels
+    elif opt.dataset == 'flowers':
+        train_dataset = datasets.Flowers102(root=opt.data_folder,
+                                            transform=train_transform,
+                                            download=True)
+        train_dataset.targets = train_dataset._labels
+        test_dataset = datasets.Flowers102(root=opt.data_folder,
+                                           split="test",
+                                           transform=test_transform,
+                                           download=True)
+        test_dataset.targets = test_dataset._labels
     elif opt.dataset == 'imagenet100' or opt.dataset == 'imagenet' or opt.dataset == 'path':
         train_dataset = datasets.ImageFolder(root=opt.data_folder,
                                              transform=train_transform)
@@ -286,6 +340,23 @@ def set_loader(opt, contrast_trans=False, for_test=False):
         test_loader = DataLoader(
             test_dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_size=opt.batch_size)
+
+    # compute mean and STD used above (use test transform without normalization)
+    # code from https://discuss.pytorch.org/t/about-normalization-using-pre-trained
+    # -vgg16-networks/23560/5?u=kuzand
+    # mean = 0.
+    # std = 0.
+    # nb_samples = 0.
+    # for data, _ in train_loader:
+    #     batch_samples = data.size(0)
+    #     data = data.view(batch_samples, data.size(1), -1)
+    #     mean += data.mean(2).sum(0)
+    #     std += data.std(2).sum(0)
+    #     nb_samples += batch_samples
+    # mean /= nb_samples
+    # std /= nb_samples
+    # print(mean)
+    # print(std)
 
     return train_loader, valid_loader, test_loader
 

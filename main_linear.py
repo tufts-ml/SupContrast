@@ -46,7 +46,7 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
-                                 'aircraft', 'cars', 'path'],
+                                 'aircraft', 'cars', 'food101', 'pet', 'dtd', 'flowers', 'path'],
                         help='dataset')
     parser.add_argument('--valid_split', type=float, default=0,
                         help="proportion of train data to use for validation set")
