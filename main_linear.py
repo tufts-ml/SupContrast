@@ -110,6 +110,14 @@ def parse_option():
         opt.n_cls = 102
     elif opt.dataset == 'cars':
         opt.n_cls = 196
+    elif opt.dataset == 'food101':
+        opt.n_cls = 101
+    elif opt.dataset == 'pet':
+        opt.n_cls = 37
+    elif opt.dataset == 'dtd':
+        opt.n_cls = 47
+    elif opt.dataset == 'flowers':
+        opt.n_cls = 102
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
 
