@@ -202,7 +202,7 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         # SGD
         # always zero in case grad accidentally calculated for non-train epoch
         optimizer.zero_grad()
-        if opt.method == 'SINCERE':
+        if opt.method == 'SINCERE' or opt.method == 'EpsSupInfoNCE':
             sincere_loss.backward()
         elif opt.method == 'SupCon':
             supcon_loss.backward()
