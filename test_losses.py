@@ -46,3 +46,25 @@ def test_sup():
     # old_loss usually greater than 1.5
     # new loss usually much less than 0.1, but varies more from random samples
     assert old_val > new_val
+
+
+def test_eps_0():
+    # test that SINCERE and EpsSupInfoNCE are equivalent with epsilon=0
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = revised_losses.MultiviewEpsSupInfoNCELoss(epsilon=0)
+    new_loss = revised_losses.MultiviewSINCERELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    assert torch.isclose(old_val, new_val)
+
+
+def test_eps_non_0():
+    # test that EpsSupInfoNCE is smaller than SINCERE with epsilon=0
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = revised_losses.MultiviewEpsSupInfoNCELoss(epsilon=0.25)
+    new_loss = revised_losses.MultiviewSINCERELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    assert old_val < new_val
