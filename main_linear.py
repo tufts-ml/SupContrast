@@ -5,6 +5,7 @@ import argparse
 import time
 import math
 import os
+from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -77,9 +78,10 @@ def parse_option():
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
+    # get the method used by the checkpoint by grabbing everything before first _ in folder name
+    ckpt_method = Path(opt.ckpt).parts[-2].partition("_")[0]
     opt.model_name = '{}_lr_{}_bsz_{}_{}'.\
-        format(opt.dataset, opt.learning_rate, opt.batch_size,
-               "new" if "new" in opt.ckpt else "old")
+        format(opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method)
 
     if opt.cosine:
         opt.model_name = '{}_cosine'.format(opt.model_name)
