@@ -27,6 +27,25 @@ def pair_sim_hist(pred_dict, class_labels, out_folder):
         plt.close()
 
 
+def pair_sim_hist_all(pred_dict, out_folder):
+    fig_folder = Path("figures/hist") / out_folder.name
+    fig_folder.mkdir(exist_ok=True)
+    # plot histogram and save
+    fig, ax = plt.subplots()
+    sns_ax = sns.histplot(
+        x=torch.hstack((pred_dict["target_sim"], pred_dict["noise_sim"])),
+        hue=["Target"] * len(pred_dict["target_sim"]) + ["Noise"] * len(pred_dict["noise_sim"]),
+        ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
+        common_bins=True, common_norm=False)
+    sns.move_legend(sns_ax, "upper left")
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Cosine Similarity")
+    ax.set_ylabel("Test Set Proportion")
+    ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
+    fig.savefig(fig_folder / "all.pdf")
+    plt.close()
+
+
 def pair_sim_curves(pred_dict, class_labels, out_folder):
     roc_fig_folder = Path("figures/roc") / out_folder.name
     roc_fig_folder.mkdir(exist_ok=True)
@@ -138,6 +157,9 @@ if __name__ == "__main__":
     for out_folder in out_folders:
         print(out_folder)
         # get prediction data for test with 1NN on train
+        if not out_folder.exists():
+            print(f"Folder not found, skipping {out_folder}")
+            continue
         if not (out_folder / "test_pred_dict.pth").exists():
             train_embeds = torch.load(out_folder / "train_embeds.pth")
             train_labels = torch.load(out_folder / "train_labels.pth")
@@ -160,7 +182,9 @@ if __name__ == "__main__":
         else:
             # CIFAR-2 labels
             class_labels = ('Cat', 'Dog')
-        # paired similarity histogram
+        # paired similarity histogram for all classes
+        pair_sim_hist_all(test_pred_dict, out_folder)
+        # paired similarity histogram for individual classes
         pair_sim_hist(test_pred_dict, class_labels, out_folder)
         # paired similarity ROC and PR curves
         pair_sim_curves(test_pred_dict, class_labels, out_folder)
