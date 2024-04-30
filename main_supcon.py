@@ -16,7 +16,7 @@ from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
-from revised_losses import MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss
+from revised_losses import arccos_sim, MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss
 
 
 def parse_option():
@@ -67,9 +67,12 @@ def parse_option():
                         choices=['SINCERE', 'SupCon', 'SimCLR', 'EpsSupInfoNCE'],
                         help='choose method')
 
-    # temperature
+    # loss hyperparameters
     parser.add_argument('--temp', type=float, default=0.07,
                         help='temperature for loss function')
+    parser.add_argument('--activation', type=str, default=None,
+                        choices=['arccos'],
+                        help='optional activation for cosine sim logits')
 
     # other setting
     parser.add_argument('--cosine', action='store_true',
@@ -150,10 +153,17 @@ def set_model(opt):
     return model
 
 
+def get_sincere(opt):
+    if opt.method == 'EpsSupInfoNCE':
+        return MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    else:
+        activation_func = arccos_sim if opt.activation == "arccos" else None
+        return MultiviewSINCERELoss(temperature=opt.temp, activation_func=activation_func)
+
+
 def train(train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    sincere_loss_func = get_sincere(opt)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
@@ -244,8 +254,7 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
     # loggger is given if valid_loader is validation set, otherwise is test set
     val_is_test = logger is None
 
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    sincere_loss_func = get_sincere(opt)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
