@@ -48,6 +48,13 @@ def test_sup():
     assert old_val > new_val
 
 
+def test_sup_arccos():
+    # fuzzing with the arccos_sim
+    embeds, labels = spoof_sup_embeds()
+    new_loss = revised_losses.MultiviewSINCERELoss(activation_func=revised_losses.arccos_sim)
+    new_loss(embeds, labels)
+
+
 def test_eps_0():
     # test that SINCERE and EpsSupInfoNCE are equivalent with epsilon=0
     embeds, labels = spoof_sup_embeds()

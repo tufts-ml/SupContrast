@@ -2,10 +2,30 @@ import torch
 import torch.nn as nn
 
 
+def arccos_sim(logits: torch.Tensor):
+    """Map cosine similarity to arccos similarity
+
+    Args:
+        logits (torch.Tensor): cosine similarity logits in [-1, 1]
+
+    Returns:
+        torch.Tensor: arccos similarity logits in [0, 1]
+    """
+    return 1 - torch.arccos(logits) / torch.pi
+
+
 class SINCERELoss(nn.Module):
-    def __init__(self, temperature=0.07) -> None:
+    def __init__(self, temperature=0.07, activation_func=None) -> None:
+        """SINCERE loss
+
+        Args:
+            temperature (float, optional): Divisor of activations. Defaults to 0.07.
+            activation_func (function, optional): Activation function taking cosine similarity
+                                                  inputs. Defaults to None.
+        """
         super().__init__()
         self.temperature = temperature
+        self.activation_func = activation_func
 
     def forward(self, embeds: torch.Tensor, labels: torch.tensor):
         """Supervised InfoNCE REvisited loss with cosine distance
@@ -20,6 +40,10 @@ class SINCERELoss(nn.Module):
         # calculate logits (activations) for each embeddings pair (B, B)
         # using matrix multiply instead of cosine distance function for ~10x cost reduction
         logits = embeds @ embeds.T
+        # apply activation function if present
+        if self.activation_func is not None:
+            logits = self.activation_func(logits)
+        # apply temperature scaling
         logits /= self.temperature
         # determine which logits are between embeds of the same label (B, B)
         same_label = labels.unsqueeze(0) == labels.unsqueeze(1)
@@ -57,8 +81,8 @@ class SINCERELoss(nn.Module):
 
 
 class MultiviewSINCERELoss(SINCERELoss):
-    def __init__(self, temperature=0.07) -> None:
-        super().__init__(temperature)
+    def __init__(self, temperature=0.07, activation_func=None) -> None:
+        super().__init__(temperature, activation_func=None)
 
     def forward(self, embeds, labels: torch.tensor):
         """Supervised InfoNCE with cosine distance and multiple image views
