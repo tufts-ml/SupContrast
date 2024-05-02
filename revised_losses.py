@@ -82,7 +82,7 @@ class SINCERELoss(nn.Module):
 
 class MultiviewSINCERELoss(SINCERELoss):
     def __init__(self, temperature=0.07, activation_func=None) -> None:
-        super().__init__(temperature, activation_func=None)
+        super().__init__(temperature, activation_func)
 
     def forward(self, embeds, labels: torch.tensor):
         """Supervised InfoNCE with cosine distance and multiple image views
