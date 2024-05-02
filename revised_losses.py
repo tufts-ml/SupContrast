@@ -39,7 +39,7 @@ class SINCERELoss(nn.Module):
         """
         # calculate logits (activations) for each embeddings pair (B, B)
         # using matrix multiply instead of cosine distance function for ~10x cost reduction
-        logits = embeds @ embeds.T
+        logits = torch.clamp(embeds @ embeds.T, -1, 1)  # clamp to ensure range of cosine similarity
         # apply activation function if present
         if self.activation_func is not None:
             logits = self.activation_func(logits)
