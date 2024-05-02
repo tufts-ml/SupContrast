@@ -11,7 +11,8 @@ def arccos_sim(logits: torch.Tensor):
     Returns:
         torch.Tensor: arccos similarity logits in [0, 1]
     """
-    return 1 - torch.arccos(logits) / torch.pi
+    eps = 1e-7  # small constant to avoid NaN gradients from arccos
+    return 1 - torch.arccos(torch.clamp(logits, -1 + eps, 1 - eps)) / torch.pi
 
 
 class SINCERELoss(nn.Module):
@@ -39,7 +40,7 @@ class SINCERELoss(nn.Module):
         """
         # calculate logits (activations) for each embeddings pair (B, B)
         # using matrix multiply instead of cosine distance function for ~10x cost reduction
-        logits = torch.clamp(embeds @ embeds.T, -1, 1)  # clamp to ensure range of cosine similarity
+        logits = embeds @ embeds.T
         # apply activation function if present
         if self.activation_func is not None:
             logits = self.activation_func(logits)
