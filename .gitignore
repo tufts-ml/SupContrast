@@ -4,6 +4,8 @@ datasets/
 *save/
 # slurm outputs
 slurm_out/
+# don't track figures by default
+figures/**
 
 tmp*.py
 .idea/
