@@ -1,5 +1,9 @@
 # dataset download folder
 datasets/
+# save folders
+*save/
+# slurm output
+slurm_out/
 
 tmp*.py
 .idea/
