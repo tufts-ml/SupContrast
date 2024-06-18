@@ -30,20 +30,29 @@ def pair_sim_hist(pred_dict, class_labels, out_folder):
 def pair_sim_hist_all(pred_dict, out_folder):
     fig_folder = Path("figures/hist") / out_folder.name
     fig_folder.mkdir(exist_ok=True)
-    # plot histogram and save
-    fig, ax = plt.subplots()
-    sns_ax = sns.histplot(
-        x=torch.hstack((pred_dict["target_sim"], pred_dict["noise_sim"])),
-        hue=["Target"] * len(pred_dict["target_sim"]) + ["Noise"] * len(pred_dict["noise_sim"]),
-        ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
-        common_bins=True, common_norm=False)
-    sns.move_legend(sns_ax, "upper left")
-    ax.set_ylim(0, 1)
-    ax.set_xlabel("Cosine Similarity")
-    ax.set_ylabel("Test Set Proportion")
-    ax.set_title("SINCERE Loss" if "SINCERE" in out_folder.name else "SupCon Loss")
-    fig.savefig(fig_folder / "all.pdf")
-    plt.close()
+    for x_axis_type in ["cos", "arccos"]:
+        # plot histogram and save
+        fig, ax = plt.subplots()
+        logits = torch.hstack((pred_dict["target_sim"], pred_dict["noise_sim"]))
+        if x_axis_type == "arccos":
+            eps = 1e-7  # small constant to avoid NaN gradients from arccos
+            logits = 1 - torch.arccos(torch.clamp(logits, -1 + eps, 1 - eps)) / torch.pi
+        sns_ax = sns.histplot(
+            x=logits,
+            hue=["Target"] * len(pred_dict["target_sim"]) + ["Noise"] * len(pred_dict["noise_sim"]),
+            ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
+            common_bins=True, common_norm=False)
+        sns.move_legend(sns_ax, "upper left")
+        ax.set_ylim(0, 1)
+        if x_axis_type == "arccos":
+            ax.set_xlabel("Negative Arc Length Similarity")
+        else:
+            ax.set_xlabel("Cosine Similarity")
+        ax.set_ylabel("Test Set Proportion")
+        ax.set_title("SINCERE Loss with Negative Arc Length Similarity"
+                     if "arccos" in out_folder.name else "SINCERE Loss with Cosine Similarity")
+        fig.savefig(fig_folder / f"all_{x_axis_type}.pdf")
+        plt.close()
 
 
 def pair_sim_curves(pred_dict, class_labels, out_folder):
@@ -141,18 +150,10 @@ def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
 if __name__ == "__main__":
     from pathlib import Path
 
-    out_folders = [Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_20-22_04_43/"),  # noqa: E501
-                   Path("save/SupCon/cifar10_models/SupCon_cifar10_resnet50_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_19-15_04_54/"),  # noqa: E501
-                   Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_28_30/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/SINCERE_cifar2_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_40/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/SupCon_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_42/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/EpsSupInfoNCE_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_23/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_28/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_31/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_07/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_18/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_20/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_22-09_31_46/"),]  # noqa: E501
+    out_folders = [
+            Path("2024_03_save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_20-22_04_43/"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_act_arccos_trial_0_cosine_warm_2024_05_17-15_14_23/"),  # noqa: E501
+    ]
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
@@ -185,6 +186,6 @@ if __name__ == "__main__":
         # paired similarity histogram for all classes
         pair_sim_hist_all(test_pred_dict, out_folder)
         # paired similarity histogram for individual classes
-        pair_sim_hist(test_pred_dict, class_labels, out_folder)
+        # pair_sim_hist(test_pred_dict, class_labels, out_folder)
         # paired similarity ROC and PR curves
-        pair_sim_curves(test_pred_dict, class_labels, out_folder)
+        # pair_sim_curves(test_pred_dict, class_labels, out_folder)
