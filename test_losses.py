@@ -68,3 +68,14 @@ def test_eps_non_0():
     old_val = old_loss(embeds, labels)
     new_val = new_loss(embeds, labels)
     assert old_val < new_val
+
+
+def test_dcl():
+    # test that EpsSupInfoNCE is smaller than SINCERE with epsilon=0
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = revised_losses.MultiviewDCLLoss()
+    new_loss = revised_losses.MultiviewSINCERELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    assert old_val < new_val

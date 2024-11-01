@@ -16,7 +16,7 @@ from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
-from revised_losses import MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss
+from revised_losses import MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss, MultiviewDCLLoss
 
 
 def parse_option():
@@ -64,7 +64,7 @@ def parse_option():
 
     # method
     parser.add_argument('--method', type=str, default='SupCon',
-                        choices=['SINCERE', 'SupCon', 'SimCLR', 'EpsSupInfoNCE'],
+                        choices=['SINCERE', 'SupCon', 'SimCLR', 'EpsSupInfoNCE', 'DCL'],
                         help='choose method')
 
     # temperature
@@ -152,8 +152,12 @@ def set_model(opt):
 
 def train(train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    if opt.method == 'EpsSupInfoNCE':
+        sincere_loss_func = MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    elif opt.method == 'DCL':
+        sincere_loss_func = MultiviewDCLLoss(temperature=opt.temp)
+    else:
+        sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
@@ -202,7 +206,7 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         # SGD
         # always zero in case grad accidentally calculated for non-train epoch
         optimizer.zero_grad()
-        if opt.method == 'SINCERE' or opt.method == 'EpsSupInfoNCE':
+        if opt.method == 'SINCERE' or opt.method == 'EpsSupInfoNCE' or opt.method == 'DCL':
             sincere_loss.backward()
         elif opt.method == 'SupCon':
             supcon_loss.backward()
@@ -244,8 +248,12 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
     # loggger is given if valid_loader is validation set, otherwise is test set
     val_is_test = logger is None
 
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    if opt.method == 'EpsSupInfoNCE':
+        sincere_loss_func = MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    elif opt.method == 'DCL':
+        sincere_loss_func = MultiviewDCLLoss(temperature=opt.temp)
+    else:
+        sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
