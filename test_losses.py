@@ -71,10 +71,33 @@ def test_eps_non_0():
 
 
 def test_dcl():
-    # test that EpsSupInfoNCE is smaller than SINCERE with epsilon=0
+    # test that DCL is smaller than SINCERE due to removal of denominator term
     embeds, labels = spoof_sup_embeds()
     # use default "all" contrast mode, which computes loss for all views instead of single view
     old_loss = revised_losses.MultiviewDCLLoss()
+    new_loss = revised_losses.MultiviewSINCERELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    assert old_val < new_val
+
+
+def test_lse():
+    # test that LSE is smaller than SINCERE due to removal of denominator term and aggregation of
+    # target pairs in numerator
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = revised_losses.MultiviewLSELoss()
+    new_loss = revised_losses.MultiviewSINCERELoss()
+    old_val = old_loss(embeds, labels)
+    new_val = new_loss(embeds, labels)
+    assert old_val < new_val
+
+
+def test_lse_sincere():
+    # test that LSE SINCERE is smaller than SINCERE due to aggregation of target pairs in numerator
+    embeds, labels = spoof_sup_embeds()
+    # use default "all" contrast mode, which computes loss for all views instead of single view
+    old_loss = revised_losses.MultiviewLSESINCERELoss()
     new_loss = revised_losses.MultiviewSINCERELoss()
     old_val = old_loss(embeds, labels)
     new_val = new_loss(embeds, labels)

@@ -16,7 +16,7 @@ from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
 from networks.resnet_big import SupConResNet
 from losses import SupConLoss
-from revised_losses import MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss, MultiviewDCLLoss
+import revised_losses
 
 
 def parse_option():
@@ -64,7 +64,8 @@ def parse_option():
 
     # method
     parser.add_argument('--method', type=str, default='SupCon',
-                        choices=['SINCERE', 'SupCon', 'SimCLR', 'EpsSupInfoNCE', 'DCL'],
+                        choices=['SINCERE', 'SupCon', 'SimCLR', 'EpsSupInfoNCE', 'DCL', 'LSE',
+                                 'LSESINCERE'],
                         help='choose method')
 
     # temperature
@@ -150,14 +151,22 @@ def set_model(opt):
     return model
 
 
+def get_loss(opt):
+    if opt.method == 'EpsSupInfoNCE':
+        return revised_losses.MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+    elif opt.method == 'DCL':
+        return revised_losses.MultiviewDCLLoss(temperature=opt.temp)
+    elif opt.method == 'LSE':
+        return revised_losses.MultiviewLSELoss(temperature=opt.temp)
+    elif opt.method == 'LSESINCERE':
+        return revised_losses.MultiviewLSESINCERELoss(temperature=opt.temp)
+    else:
+        return revised_losses.MultiviewSINCERELoss(temperature=opt.temp)
+
+
 def train(train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
-    if opt.method == 'EpsSupInfoNCE':
-        sincere_loss_func = MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
-    elif opt.method == 'DCL':
-        sincere_loss_func = MultiviewDCLLoss(temperature=opt.temp)
-    else:
-        sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
+    sincere_loss_func = get_loss(opt)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
@@ -206,13 +215,10 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         # SGD
         # always zero in case grad accidentally calculated for non-train epoch
         optimizer.zero_grad()
-        if opt.method == 'SINCERE' or opt.method == 'EpsSupInfoNCE' or opt.method == 'DCL':
-            sincere_loss.backward()
-        elif opt.method == 'SupCon':
+        if opt.method == 'SupCon':
             supcon_loss.backward()
         else:
-            raise ValueError('contrastive method not supported: {}'.
-                             format(opt.method))
+            sincere_loss.backward()
         optimizer.step()
         # compute accuracy
         with torch.no_grad():
@@ -248,12 +254,7 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
     # loggger is given if valid_loader is validation set, otherwise is test set
     val_is_test = logger is None
 
-    if opt.method == 'EpsSupInfoNCE':
-        sincere_loss_func = MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
-    elif opt.method == 'DCL':
-        sincere_loss_func = MultiviewDCLLoss(temperature=opt.temp)
-    else:
-        sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp)
+    sincere_loss_func = get_loss(opt)
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
