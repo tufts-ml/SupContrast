@@ -1,5 +1,7 @@
 import torch
 
+from embed_stats import make_test_pred_dict
+
 
 def sim_median_margin(target_sim: torch.Tensor, noise_sim: torch.Tensor):
     return torch.abs(torch.median(target_sim) - torch.median(noise_sim))
@@ -38,30 +40,32 @@ if __name__ == "__main__":
         ],
         # ResNet-200 CIFAR-10
         [
-            Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_11-00_00_51"),  # noqa: E501
-            Path("save/SupCon/cifar10_models/SupCon_cifar10_resnet200_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_11-06_21_44"),  # noqa: E501
-            Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-20_44_27"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_11-00_00_51/"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/SupCon_cifar10_resnet200_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_11-06_21_44/"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-20_44_27/"),  # noqa: E501
         ],
         # ResNet-200 CIFAR-100
         [
-            Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_10-20_54_38"),  # noqa: E501
-            Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-22_29_41"),  # noqa: E501
-            Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-23_54_39"),  # noqa: E501
+            Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_10-20_54_38/"),  # noqa: E501
+            Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-22_29_41/"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-23_54_39/"),  # noqa: E501
         ],
         # batch 1024 CIFAR-10
         [
-            Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_11-15_01_39"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_11-15_01_39/"),  # noqa: E501
         ],
         # batch 1024 CIFAR-100
         [
-            Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_14-02_26_51"),  # noqa: E501
-            Path("save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_13-18_17_54"),  # noqa: E501
+            Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_14-02_26_51/"),  # noqa: E501
+            Path("save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_13-18_17_54/"),  # noqa: E501
         ],
     ]
     for model_folders in model_folders_group:
         b_scores_cache = []
         # print bootstrapped accuracy CIs
         for out_folder in model_folders:
+            if not (out_folder / "test_pred_dict.pth").exists():
+                make_test_pred_dict()
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
             print(out_folder)
             print("Means, 95% CI Low, 95% CI High")

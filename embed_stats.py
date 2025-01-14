@@ -138,6 +138,15 @@ def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
     }
 
 
+def make_test_pred_dict(out_folder):
+    train_embeds = torch.load(out_folder / "train_embeds.pth")
+    train_labels = torch.load(out_folder / "train_labels.pth")
+    test_embeds = torch.load(out_folder / "test_embeds.pth")
+    test_labels = torch.load(out_folder / "test_labels.pth")
+    test_pred_dict = pred_dict(train_embeds, train_labels, test_embeds, test_labels)
+    torch.save(test_pred_dict, out_folder / "test_pred_dict.pth")
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -161,12 +170,7 @@ if __name__ == "__main__":
             print(f"Folder not found, skipping {out_folder}")
             continue
         if not (out_folder / "test_pred_dict.pth").exists():
-            train_embeds = torch.load(out_folder / "train_embeds.pth")
-            train_labels = torch.load(out_folder / "train_labels.pth")
-            test_embeds = torch.load(out_folder / "test_embeds.pth")
-            test_labels = torch.load(out_folder / "test_labels.pth")
-            test_pred_dict = pred_dict(train_embeds, train_labels, test_embeds, test_labels)
-            torch.save(test_pred_dict, out_folder / "test_pred_dict.pth")
+            make_test_pred_dict()
         else:
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
         # print median target and noise similarities
