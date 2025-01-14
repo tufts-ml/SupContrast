@@ -48,7 +48,6 @@ if __name__ == "__main__":
         [
             Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_10-20_54_38/"),  # noqa: E501
             Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-22_29_41/"),  # noqa: E501
-            Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-23_54_39/"),  # noqa: E501
         ],
         # batch 1024 CIFAR-10
         [
@@ -68,7 +67,7 @@ if __name__ == "__main__":
                 make_test_pred_dict(out_folder)
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
             print(out_folder)
-            print("Means, 95% CI Low, 95% CI High")
+            print("Cosine Similarity Margin: Means, 95% CI Low, 95% CI High")
             metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
                 test_pred_dict["target_sim"], test_pred_dict["noise_sim"], sim_median_margin)
             b_scores_cache.append(b_scores)
@@ -77,7 +76,7 @@ if __name__ == "__main__":
         # print accuracy difference for each pair of models
         for i in range(1, len(model_folders)):
             for j in range(i):
-                print("Accuracy Difference 95% CI for:")
+                print("Margin Difference Outside 95% CI for:")
                 print(model_folders[j])
                 print(model_folders[i])
                 print(bootstrap_dif(b_scores_cache[j], b_scores_cache[i]))
