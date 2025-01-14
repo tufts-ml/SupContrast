@@ -65,7 +65,7 @@ if __name__ == "__main__":
         # print bootstrapped accuracy CIs
         for out_folder in model_folders:
             if not (out_folder / "test_pred_dict.pth").exists():
-                make_test_pred_dict()
+                make_test_pred_dict(out_folder)
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
             print(out_folder)
             print("Means, 95% CI Low, 95% CI High")
