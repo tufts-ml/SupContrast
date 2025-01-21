@@ -18,7 +18,7 @@ search_dict = {
 slurm_dict = {
     "-p": "hugheslab",
     "-t": "0-20:0:0",
-    "--gres": "gpu:rtx_6000:1",
+    "--gres": "gpu:artx_6000:1",
     "-c": 16,
     "-o": "~/Git/SupContrast/slurm_out/%A_%a.out",
 }

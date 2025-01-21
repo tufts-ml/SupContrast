@@ -132,6 +132,9 @@ def parse_option():
 
 
 def set_model(opt):
+    # hack to load the correct model for the checkpoint
+    if "resnet200" in opt.ckpt:
+        opt.model = "resnet200"
     model = SupConResNet(name=opt.model)
     criterion = torch.nn.CrossEntropyLoss()
 
