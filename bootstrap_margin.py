@@ -49,14 +49,28 @@ if __name__ == "__main__":
             Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_10-20_54_38/"),  # noqa: E501
             Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_10-22_29_41/"),  # noqa: E501
         ],
+        # ResNet-200 ImageNet-100
+        [
+            Path("save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_14-18_23_15"),  # noqa: E501
+            Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_15-03_28_23"),  # noqa: E501
+            Path("save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_14-18_15_23"),  # noqa: E501
+        ],
         # batch 1024 CIFAR-10
         [
             Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_11-15_01_39/"),  # noqa: E501
+            Path("save/SupCon/cifar10_models/SupCon_cifar10_resnet50_lr_0.35_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_15-11_37_22"),  # noqa: E501
         ],
         # batch 1024 CIFAR-100
         [
             Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_14-02_26_51/"),  # noqa: E501
+            Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_15-03_28_23"),  # noqa: E501
             Path("save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_13-18_17_54/"),  # noqa: E501
+        ],
+        # batch 1024 ImageNet-100
+        [
+            Path("save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_15-12_41_27"),  # noqa: E501
+            Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_15-12_41_27"),  # noqa: E501
+            Path("save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_15-12_41_27"),  # noqa: E501
         ],
     ]
     for model_folders in model_folders_group:
