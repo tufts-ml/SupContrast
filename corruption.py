@@ -124,9 +124,9 @@ if __name__ == "__main__":
 
     for model_folder in model_folders:
         # model loading
-        if "resnet50" in model_folder:
+        if "resnet50" in model_folder.name:
             opt.model = "resnet50"
-        elif "resnet200" in model_folder:
+        elif "resnet200" in model_folder.name:
             opt.model = "resnet200"
         model = set_model(opt).cuda()
         model.load_state_dict(torch.load(model_folder / "last.pth")["model"])
