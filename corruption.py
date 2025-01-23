@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-from bootstrap_knn_acc import test_contrastive_pred_knn
+from bootstrap_knn_acc import accuracy, bootstrap_metric, test_contrastive_pred_knn
 from main_supcon import parse_option, set_model
 
 
@@ -150,9 +150,15 @@ if __name__ == "__main__":
             opt.dataset = "cifar100"
             opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-100-C"
         # loop over the distortions
+        print(model_folder)
         for distortion_name in distortions:
             for corruption_level in range(1, 6):
                 test_embeds, test_labels = corruption_forward(
                     distortion_name, corruption_level, model, model_folder, opt)
-                print(test_contrastive_pred_knn(
-                    train_embeds, test_embeds, train_labels, test_labels, 1))
+                y_pred = test_contrastive_pred_knn(
+                    train_embeds, test_embeds, train_labels, test_labels, 1)
+                print("Means, 95% CI Low, 95% CI High")
+                metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
+                    y_pred, test_labels, accuracy)
+                print(metric_mean, ci_low, ci_high)
+                print()
