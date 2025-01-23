@@ -137,10 +137,10 @@ if __name__ == "__main__":
         # dataset loading
         # note that for both, first 10k images are corrupted 1 and last 10k are corrupted 5
         # (10k + 1 to 20k are corrupted 2, etc.)
-        if "cifar10_" in model_folder:
+        if "cifar10_" in model_folder.name:
             opt.dataset = "cifar10"
             opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-10-C"
-        if "cifar100_" in model_folder:
+        if "cifar100_" in model_folder.name:
             opt.dataset = "cifar100"
             opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-100-C"
         # loop over the distortions
