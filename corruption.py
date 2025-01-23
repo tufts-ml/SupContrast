@@ -5,7 +5,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-from bootstrap_knn_acc import accuracy, bootstrap_metric, test_contrastive_pred_knn
+from bootstrap_knn_acc import accuracy, test_contrastive_pred_knn
+from bootstrap_lin_acc import bootstrap_metric
 from main_supcon import parse_option, set_model
 
 
