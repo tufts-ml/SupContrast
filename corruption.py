@@ -24,6 +24,11 @@ class NumpyTransformDataset(Dataset):
         return len(self.data)
 
 
+def corrupt_filter(np_data, corruption_level):
+    corruption_start_ind = (corruption_level - 1) * 10000
+    return np_data[corruption_start_ind:corruption_start_ind + 10000]
+
+
 def test_dataloader(distortion_name, corruption_level, opt):
     # dataset specific normalization
     if opt.dataset == 'cifar10':
@@ -70,9 +75,8 @@ def test_dataloader(distortion_name, corruption_level, opt):
             transforms.ToTensor(),
             normalize,
         ])
-    np_data = np.load(Path(opt.data_folder) / (distortion_name + ".npy"))
-    corruption_start_ind = (corruption_level - 1) * 10000
-    np_data = np_data[corruption_start_ind:corruption_start_ind + 10000]
+    np_data = corrupt_filter(np.load(Path(opt.data_folder) / (distortion_name + ".npy")),
+                             corruption_level)
     dataset = NumpyTransformDataset(np_data, transform=transform)
     dataloader = DataLoader(
             dataset, num_workers=opt.num_workers, pin_memory=True,
@@ -91,7 +95,8 @@ def corruption_forward(distortion_name, corruption_level, model, model_folder, o
                 cur_embeds = model(images.cuda())
             embeds = torch.vstack((embeds, cur_embeds.cpu()))
         torch.save(embeds, model_folder / (distortion_name + "_embeds.pth"))
-    return embeds, torch.tensor(np.load(Path(opt.data_folder) / "labels.npy"))
+    return embeds, torch.tensor(corrupt_filter(np.load(Path(opt.data_folder) / "labels.npy"),
+                                               corruption_level))
 
 
 def corruption_eval():
