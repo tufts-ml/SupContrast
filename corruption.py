@@ -9,9 +9,9 @@ from bootstrap_knn_acc import test_contrastive_pred_knn
 from main_supcon import parse_option, set_model
 
 
-class TensorTransformDataset(Dataset):
-    def __init__(self, data, transform=None):
-        self.data = data
+class NumpyTransformDataset(Dataset):
+    def __init__(self, np_data, transform=None):
+        self.data = np_data
         self.transform = transform
 
     def __getitem__(self, index):
@@ -65,6 +65,7 @@ def test_dataloader(distortion_name, corruption_level, opt):
 
     # image is non-augmented
     transform = transforms.Compose([
+            transforms.ToPILImage(),
             transforms.Resize([opt.size, opt.size]),
             transforms.ToTensor(),
             normalize,
@@ -72,7 +73,7 @@ def test_dataloader(distortion_name, corruption_level, opt):
     np_data = np.load(Path(opt.data_folder) / (distortion_name + ".npy"))
     corruption_start_ind = (corruption_level - 1) * 10000
     np_data = np_data[corruption_start_ind:corruption_start_ind + 10000]
-    dataset = TensorTransformDataset(torch.Tensor(np_data), transform=transform)
+    dataset = NumpyTransformDataset(np_data, transform=transform)
     dataloader = DataLoader(
             dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_size=opt.batch_size)
