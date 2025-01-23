@@ -86,8 +86,8 @@ def test_dataloader(distortion_name, corruption_level, opt):
 
 
 def corruption_forward(distortion_name, corruption_level, model, model_folder, opt):
-    if (model_folder / (distortion_name + "_embeds.pth")).exists():
-        embeds = torch.load(model_folder / (distortion_name + "_embeds.pth"))
+    if (model_folder / (distortion_name + f"_{corruption_level}_embeds.pth")).exists():
+        embeds = torch.load(model_folder / (distortion_name + f"_{corruption_level}_embeds.pth"))
     else:
         dataloader = test_dataloader(distortion_name, corruption_level, opt)
         embeds = torch.empty((0, 128))
@@ -95,7 +95,7 @@ def corruption_forward(distortion_name, corruption_level, model, model_folder, o
             with torch.no_grad():
                 cur_embeds = model(images.cuda())
             embeds = torch.vstack((embeds, cur_embeds.cpu()))
-        torch.save(embeds, model_folder / (distortion_name + "_embeds.pth"))
+        torch.save(embeds, model_folder / (distortion_name + f"_{corruption_level}_embeds.pth"))
     return embeds, torch.tensor(corrupt_filter(np.load(Path(opt.data_folder) / "labels.npy"),
                                                corruption_level))
 
