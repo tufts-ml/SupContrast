@@ -130,6 +130,7 @@ if __name__ == "__main__":
     ]
     for model_folders in model_folders_groups:
         b_scores_cache = [[] for _ in range(len(model_folders))]
+        acc_cache = [[] for _ in range(len(model_folders))]
         for folder_ind, model_folder in enumerate(model_folders):
             # model loading
             if "resnet50" in model_folder.name:
@@ -159,12 +160,18 @@ if __name__ == "__main__":
                         distortion_name, corruption_level, model, model_folder, opt)
                     y_pred = test_contrastive_pred_knn(
                         train_embeds, test_embeds, train_labels, test_labels, 1)
+                    acc_cache[folder_ind].append(accuracy(y_pred, test_labels))
                     # print("Means, 95% CI Low, 95% CI High")
-                    metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
-                        y_pred, test_labels, accuracy)
-                    b_scores_cache[folder_ind].append(b_scores)
+                    # metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
+                    #     y_pred, test_labels, accuracy)
+                    # b_scores_cache[folder_ind].append(b_scores)
                     # print(metric_mean, ci_low, ci_high)
                     # print()
+        # save acc caches
+        if "cifar10_" in model_folders[0].name:
+            torch.save(torch.Tensor(acc_cache), "cifar10c_acc.pth")
+        if "cifar100_" in model_folders[0].name:
+            torch.save(torch.Tensor(acc_cache), "cifar100c_acc.pth")
         # print accuracy difference for each pair of models
         for i in range(1, len(model_folders)):
             for j in range(i):
