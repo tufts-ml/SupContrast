@@ -159,12 +159,12 @@ if __name__ == "__main__":
                         distortion_name, corruption_level, model, model_folder, opt)
                     y_pred = test_contrastive_pred_knn(
                         train_embeds, test_embeds, train_labels, test_labels, 1)
-                    print("Means, 95% CI Low, 95% CI High")
+                    # print("Means, 95% CI Low, 95% CI High")
                     metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
                         y_pred, test_labels, accuracy)
                     b_scores_cache[folder_ind].append(b_scores)
-                    print(metric_mean, ci_low, ci_high)
-                    print()
+                    # print(metric_mean, ci_low, ci_high)
+                    # print()
         # print accuracy difference for each pair of models
         for i in range(1, len(model_folders)):
             for j in range(i):
