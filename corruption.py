@@ -170,7 +170,9 @@ if __name__ == "__main__":
             for j in range(i):
                 print("Accuracy Difference 95% CI for:")
                 print(model_folders[j])
+                print(torch.mean(torch.vstack(b_scores_cache[j])))
                 print(model_folders[i])
+                print(torch.mean(torch.vstack(b_scores_cache[i])))
                 print(bootstrap_dif(torch.vstack(b_scores_cache[j]),
                                     torch.vstack(b_scores_cache[i])))
                 print()
