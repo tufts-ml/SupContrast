@@ -129,7 +129,7 @@ if __name__ == "__main__":
         "speckle_noise", "gaussian_blur", "spatter", "saturate"
     ]
     for model_folders in model_folders_groups:
-        b_scores_cache = [[] * len(model_folders)]
+        b_scores_cache = [[] for _ in range(len(model_folders))]
         for folder_ind, model_folder in enumerate(model_folders):
             # model loading
             if "resnet50" in model_folder.name:
