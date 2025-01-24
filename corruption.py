@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 from bootstrap_knn_acc import accuracy, test_contrastive_pred_knn
-from bootstrap_lin_acc import bootstrap_metric
+from bootstrap_lin_acc import bootstrap_metric, bootstrap_dif
 from main_supcon import parse_option, set_model
 
 
@@ -100,24 +100,24 @@ def corruption_forward(distortion_name, corruption_level, model, model_folder, o
                                                corruption_level))
 
 
-def corruption_eval():
-    pass
-
-
 if __name__ == "__main__":
     # grab default options
     opt = parse_option()
     opt.valid_split = 0
 
-    model_folders = [
-        # standard CIFAR-10
-        Path("2024_03_save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_20-22_04_43/"),  # noqa: E501
-        Path("2024_03_save/SupCon/cifar10_models/SupCon_cifar10_resnet50_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_19-15_04_54/"),  # noqa: E501
-        Path("2024_03_save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_28_30/"),  # noqa: E501
-        # standard CIFAR-100
-        Path("2024_03_save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_28/"),  # noqa: E501
-        Path("2024_03_save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_31/"),  # noqa: E501
-        Path("2024_03_save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_07/"),  # noqa: E501
+    model_folders_groups = [
+        [
+            # standard CIFAR-10
+            Path("2024_03_save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_20-22_04_43/"),  # noqa: E501
+            Path("2024_03_save/SupCon/cifar10_models/SupCon_cifar10_resnet50_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_19-15_04_54/"),  # noqa: E501
+            Path("2024_03_save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_28_30/"),  # noqa: E501
+        ],
+        [
+            # standard CIFAR-100
+            Path("2024_03_save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_28/"),  # noqa: E501
+            Path("2024_03_save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_31/"),  # noqa: E501
+            Path("2024_03_save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_07/"),  # noqa: E501
+        ],
     ]
 
     # corruption distortions
@@ -128,38 +128,48 @@ if __name__ == "__main__":
         "contrast", "elastic_transform", "pixelate", "jpeg_compression",
         "speckle_noise", "gaussian_blur", "spatter", "saturate"
     ]
+    for model_folders in model_folders_groups:
+        b_scores_cache = [[] * len(model_folders)]
+        for folder_ind, model_folder in enumerate(model_folders):
+            # model loading
+            if "resnet50" in model_folder.name:
+                opt.model = "resnet50"
+            elif "resnet200" in model_folder.name:
+                opt.model = "resnet200"
+            model = set_model(opt).cuda()
+            model.load_state_dict(torch.load(model_folder / "last.pth")["model"])
+            # training output loading
+            train_embeds = torch.load(model_folder / "train_embeds.pth")
+            train_labels = torch.load(model_folder / "train_labels.pth")
 
-    for model_folder in model_folders:
-        # model loading
-        if "resnet50" in model_folder.name:
-            opt.model = "resnet50"
-        elif "resnet200" in model_folder.name:
-            opt.model = "resnet200"
-        model = set_model(opt).cuda()
-        model.load_state_dict(torch.load(model_folder / "last.pth")["model"])
-        # training output loading
-        train_embeds = torch.load(model_folder / "train_embeds.pth")
-        train_labels = torch.load(model_folder / "train_labels.pth")
-
-        # dataset loading
-        # note that for both, first 10k images are corrupted 1 and last 10k are corrupted 5
-        # (10k + 1 to 20k are corrupted 2, etc.)
-        if "cifar10_" in model_folder.name:
-            opt.dataset = "cifar10"
-            opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-10-C"
-        if "cifar100_" in model_folder.name:
-            opt.dataset = "cifar100"
-            opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-100-C"
-        # loop over the distortions
-        print(model_folder)
-        for distortion_name in distortions:
-            for corruption_level in range(1, 6):
-                test_embeds, test_labels = corruption_forward(
-                    distortion_name, corruption_level, model, model_folder, opt)
-                y_pred = test_contrastive_pred_knn(
-                    train_embeds, test_embeds, train_labels, test_labels, 1)
-                print("Means, 95% CI Low, 95% CI High")
-                metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
-                    y_pred, test_labels, accuracy)
-                print(metric_mean, ci_low, ci_high)
+            # dataset loading
+            # note that for both, first 10k images are corrupted 1 and last 10k are corrupted 5
+            # (10k + 1 to 20k are corrupted 2, etc.)
+            if "cifar10_" in model_folder.name:
+                opt.dataset = "cifar10"
+                opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-10-C"
+            if "cifar100_" in model_folder.name:
+                opt.dataset = "cifar100"
+                opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-100-C"
+            # loop over the distortions
+            print(model_folder)
+            for distortion_name in distortions:
+                for corruption_level in range(1, 6):
+                    test_embeds, test_labels = corruption_forward(
+                        distortion_name, corruption_level, model, model_folder, opt)
+                    y_pred = test_contrastive_pred_knn(
+                        train_embeds, test_embeds, train_labels, test_labels, 1)
+                    print("Means, 95% CI Low, 95% CI High")
+                    metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(
+                        y_pred, test_labels, accuracy)
+                    b_scores_cache[folder_ind].append(b_scores)
+                    print(metric_mean, ci_low, ci_high)
+                    print()
+        # print accuracy difference for each pair of models
+        for i in range(1, len(model_folders)):
+            for j in range(i):
+                print("Accuracy Difference 95% CI for:")
+                print(model_folders[j])
+                print(model_folders[i])
+                print(bootstrap_dif(b_scores_cache[j], b_scores_cache[i]))
                 print()
