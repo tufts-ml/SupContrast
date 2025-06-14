@@ -2,7 +2,7 @@ import itertools
 import subprocess
 
 
-launch_cmd = "cd ~/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
+launch_cmd = "cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
 
 search_dict = {
     "--batch_size": 512,
@@ -20,7 +20,7 @@ slurm_dict = {
     "-t": "0-20:0:0",
     "--gres": "gpu:rtx_a6000:1",
     "-c": 16,
-    "-o": "~/Git/SupContrast/slurm_out/%A_%a.out",
+    "-o": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/%A_%a.out",
 }
 
 

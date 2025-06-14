@@ -20,7 +20,7 @@ slurm_dict = {
     "-t": "0-20:0:0",
     "--gres": "gpu:a100:1",
     "-c": 16,
-    "-o": "~/Git/SupContrast/slurm_out/%A_%a.out",
+    "-o": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/%A_%a.out",
 }
 
 
