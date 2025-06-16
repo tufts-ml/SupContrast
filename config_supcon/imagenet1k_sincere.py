@@ -6,16 +6,17 @@ import subprocess
 # srun -p gpu --gres=gpu:a100:1 -t 0-08:00 -c 16 --pty bash
 
 # pipenv run python main_supcon.py \
-#   --batch_size 32 \
+#   --model resnet18 \
+#   --batch_size 64 \
 #   --learning_rate 0.65 \
 #   --temp 0.1 \
 #   --cosine \
 #   --epochs 1 \
+#   --print_freq 100 \
 #   --method SINCERE \
 #   --valid_split 0 \
 #   --dataset imagenet \
-#   --print_freq 5 \
-#   --size 224
+#   --size 224 
 
 
 
