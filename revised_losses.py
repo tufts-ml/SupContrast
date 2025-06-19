@@ -45,8 +45,17 @@ class SINCERELoss(nn.Module):
 
         # construct denominator term for each numerator via logsumexp over a stack (B, B)
         log_denom = torch.zeros_like(logits)
-        log_denom[in_numer] = torch.stack(
+
+        # log_denom[in_numer] = torch.stack(
+        #     (numer_logits[in_numer], base_denom[in_numer]), dim=0).logsumexp(dim=0)
+
+        # --- mixed_precision fixed ---
+        # calculate the source value first
+        source_value = torch.stack(
             (numer_logits[in_numer], base_denom[in_numer]), dim=0).logsumexp(dim=0)
+        # explicitly cast the source to match the destination's dtype before assignment
+        log_denom[in_numer] = source_value.to(log_denom.dtype)
+        # --- END FIX ---
 
         # cross entropy loss of each positive pair with the logsumexp of the negative classes (B, B)
         # entries not in numerator set to 0
