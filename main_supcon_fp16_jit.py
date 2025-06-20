@@ -385,17 +385,19 @@ def valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger):
                     labels = labels.to(opt.device, non_blocking=True)
             bsz = labels.shape[0]
 
-            # forward
-            with torch.no_grad():
-                flat_embeds = model(images)
-            # reshape from (2B, D) to (B, 2, D)
-            embeds = torch.cat(
-                [
-                    aug.unsqueeze(1)
-                    for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)
-                ],
-                dim=1,
-            )
+            with autocast("cuda", enabled=opt.mixed_precision):
+                # forward
+                with torch.no_grad():
+                    flat_embeds = model(images)
+                # reshape from (2B, D) to (B, 2, D)
+                embeds = torch.cat(
+                    [
+                        aug.unsqueeze(1)
+                        for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)
+                    ],
+                    dim=1,
+                )
+
             # cache train outputs
             if is_train:
                 train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
@@ -428,8 +430,10 @@ def valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger):
             # compute losses (note there's no class balancing sampler for test)
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
-            sincere_loss = sincere_loss_func(embeds, labels)
-            supcon_loss = supcon_loss_func(embeds, labels)
+            with autocast("cuda", enabled=opt.mixed_precision):
+                sincere_loss = sincere_loss_func(embeds, labels)
+                supcon_loss = supcon_loss_func(embeds, labels)
+
             # update averages
             av_sincere.update(sincere_loss.item(), bsz)
             av_supcon.update(supcon_loss.item(), bsz)
@@ -451,6 +455,10 @@ def valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger):
                         data_time=av_data_time,
                     )
                 )
+
+                # print(f"flat_embeds \t {flat_embeds.dtype}")            # torch.float.32
+                # print(f"embeds      \t {embeds.dtype}")                 # torch.float.32
+
                 sys.stdout.flush()
     if "device" not in opt or opt.device == 0 and not is_train:
         # tensorboard logger
