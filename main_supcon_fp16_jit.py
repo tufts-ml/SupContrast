@@ -324,6 +324,10 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
                     data_time=av_data_time,
                 )
             )
+
+            # print(f"flat_embeds \t {flat_embeds.dtype}")            # torch.float.32
+            # print(f"embeds      \t {embeds.dtype}")                 # torch.float.32
+
             sys.stdout.flush()
 
     # tensorboard logger
