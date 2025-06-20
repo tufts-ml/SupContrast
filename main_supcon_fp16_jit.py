@@ -115,7 +115,7 @@ def parse_option():
         "--trial", type=str, default="0", help="id for recording multiple runs"
     )
     parser.add_argument(
-        "--mixed_precision", action="store_true", help="train in fp16 instead of fp32"
+        "--mixed_precision", action="store_true", help="use torch.amp for mixed precision"
     )
 
     opt = parser.parse_args()
