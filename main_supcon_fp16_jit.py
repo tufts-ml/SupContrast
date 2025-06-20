@@ -511,10 +511,14 @@ def main(opt):
         time1 = time.time()
         train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger)
         time2 = time.time()
-        # use valid_loader if present
-        if epoch % 5 == 0 and valid_loader is not None:
-            valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger)
         print("epoch {}, total time {:.2f}".format(epoch, time2 - time1))
+
+        # use valid_loader if present
+        if epoch % 10 == 0 and valid_loader is not None:
+            time1 = time.time()
+            valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger)
+            time2 = time.time()
+            print("valid {}, total time {:.2f}".format(epoch, time2 - time1))
 
         # checkpoint
         if epoch % opt.save_freq == 0:
