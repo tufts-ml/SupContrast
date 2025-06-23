@@ -9,19 +9,20 @@ search_dict = {
     "--model": "resnet18",
     "--size": 64,
     "--mixed_precision": "",
-    "--learning_rate": [0.35, 0.5, 0.65, 0.75],
+    "--learning_rate": [0.10, 0.35, 0.5, 0.65, 0.75],
     "--temp": [0.1],
     "--cosine": "",
-    "--epochs": 550,
+    "--epochs": 350,
     "--method": ["SINCERE", "SupCon"],
     "--valid_split": 0.1,
     "--dataset": "imagenet100",
+    "--print_freq": 20,
 }
 
 slurm_dict = {
     "-p": "preempt",
-    "-t": "0-8:0:0",
-    "--gres": "gpu:rtx_a5000:1",
+    "-t": "2-00:00:00",
+    "--gres": "gpu:v100:1",
     "-c": 16,
     "-o": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/%A_%a.out",
 }
