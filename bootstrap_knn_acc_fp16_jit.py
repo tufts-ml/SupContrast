@@ -45,8 +45,8 @@ if __name__ == "__main__":
     # model_folders_group should have lists of models to compare
     model_folders_group = [
         [
-            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.35_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_19-15_37_54"), 
-            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.35_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_19-15_37_54"), 
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_49_04"), 
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_22_04"), 
         ],
     ]
     for k in [1, 5]:
@@ -56,13 +56,13 @@ if __name__ == "__main__":
             # print bootstrapped accuracy CIs
             for out_folder in model_folders:
                 y_pred = test_contrastive_pred_knn(
-                    torch.load(out_folder / "train_embeds.pth"),
-                    torch.load(out_folder / "test_embeds.pth"),
-                    torch.load(out_folder / "train_labels.pth"),
-                    torch.load(out_folder / "test_labels.pth"),
+                    torch.load(out_folder / "train_embeds.pth", weights_only=False),
+                    torch.load(out_folder / "test_embeds.pth", weights_only=False),
+                    torch.load(out_folder / "train_labels.pth", weights_only=False),
+                    torch.load(out_folder / "test_labels.pth", weights_only=False),
                     k
                 )
-                y_true = torch.load(out_folder / "test_labels.pth")
+                y_true = torch.load(out_folder / "test_labels.pth", weights_only=False)
                 print(out_folder)
                 print("Means, 95% CI Low, 95% CI High")
                 metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(y_pred, y_true, accuracy)
