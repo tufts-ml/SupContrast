@@ -2,12 +2,12 @@ import itertools
 import subprocess
 
 
-launch_cmd = "cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon_fp16_jit.py"
+launch_cmd = "export TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor_cache_${SLURM_JOB_ID}_$$; cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon_fp16_jit.py"
 
 search_dict = {
     "--batch_size": 1024,
     "--model": "resnet18",
-    "--size": 64,
+    "--size": 32,
     "--mixed_precision": "",
     "--learning_rate": [0.10, 0.35, 0.5, 0.65, 0.75],
     "--temp": [0.1],
@@ -21,10 +21,10 @@ search_dict = {
 
 slurm_dict = {
     "-p": "preempt",
-    "-t": "2-00:00:00",
-    "--gres": "gpu:v100:1",
+    "-t": "1-00:00:00",
+    "--gres": "gpu:rtx_a5000:1",
     "-c": 16,
-    "-o": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/%A_%a.out",
+    "-o": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/resnet-18-imagenet-100-32x32/%A_%a.out",
 }
 
 
