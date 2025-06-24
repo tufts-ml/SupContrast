@@ -70,12 +70,18 @@ def test_contrastive_acc_knn(train_embeds: torch.Tensor, test_embeds: torch.Tens
     # aggregate weights based on training class labels, with small uninitialized values
     pred = torch.zeros_like(test_labels)
     for i in range(len(test_labels)):
+        # get the labels of the top k neighbors
+        neighbor_labels = train_labels[indices[i]]
+        # get the weights of the top k neighbors
+        neighbor_weights = weights[i]
+
         pred_array = torch.empty((num_classes,))
-        for label in range(num_classes):
-            if label not in train_labels[indices[i]]:
-                pred_array[label] = -1e5
-            else:
-                pred_array[label] = weights[i, label == train_labels[indices[i]]].sum()
+        # sum the weight for each class
+        for j in range(knn):
+            label = neighbor_labels[j].item()
+            weight = neighbor_weights[j]
+            pred_array[label] += weight
+            
         # select class with most weight as prediction
         pred[i] = torch.argmax(pred_array)
     # 1 if predicted image with same label, otherwise 0
