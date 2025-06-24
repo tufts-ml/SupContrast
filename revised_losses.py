@@ -55,7 +55,7 @@ class SINCERELoss(nn.Module):
             (numer_logits[in_numer], base_denom[in_numer]), dim=0).logsumexp(dim=0)
         # explicitly cast the source to match the destination's dtype before assignment
         log_denom[in_numer] = source_value.to(log_denom.dtype)
-        # --- END FIX ---
+        # --- end fix ---
 
         # cross entropy loss of each positive pair with the logsumexp of the negative classes (B, B)
         # entries not in numerator set to 0
