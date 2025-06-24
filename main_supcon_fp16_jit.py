@@ -117,6 +117,9 @@ def parse_option():
     parser.add_argument(
         "--mixed_precision", action="store_true", help="use torch.amp for mixed precision"
     )
+    parser.add_argument(
+        "--jit", action="store_value", help="use jit compiler on model, loss"
+    )
 
     opt = parser.parse_args()
 
@@ -200,10 +203,9 @@ def get_loss_funcs(opt):
     # hyperparameters comparable between implementations
     supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
 
-    # jit compilation
     return {
-        "sincere": torch.compile(sincere_loss_func),
-        "supcon": torch.compile(supcon_loss_func),
+        "sincere": torch.compile(sincere_loss_func) if opt.jit else sincere_loss_func,
+        "supcon": torch.compile(supcon_loss_func) if opt.jit else supcon_loss_func,
     }
 
 
@@ -217,7 +219,7 @@ def set_model(opt):
         if torch.cuda.device_count() > 1:
             model.encoder = torch.nn.parallel.DistributedDataParallel(model.encoder)
         cudnn.benchmark = True
-    return torch.compile(model)
+    return torch.compile(model) if opt.jit else model
 
 
 def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
