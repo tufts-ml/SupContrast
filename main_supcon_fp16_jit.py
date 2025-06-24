@@ -118,7 +118,7 @@ def parse_option():
         "--mixed_precision", action="store_true", help="use torch.amp for mixed precision"
     )
     parser.add_argument(
-        "--jit", action="store_value", help="use jit compiler on model, loss"
+        "--jit", action="store_true", help="use jit compiler on model, loss"
     )
 
     opt = parser.parse_args()
