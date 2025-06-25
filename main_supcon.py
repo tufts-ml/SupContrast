@@ -176,12 +176,14 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         images = torch.cat([image_aug_tuple[0], image_aug_tuple[1]], dim=0)
         if torch.cuda.is_available():
             if "device" not in opt:
-                images = images.cuda(non_blocking=True)
-                labels = labels.cuda(non_blocking=True)
+                images = images.cuda()
+                labels = labels.cuda()
             else:
-                images = images.to(opt.device, non_blocking=True)
-                labels = labels.to(opt.device, non_blocking=True)
+                images = images.to(opt.device)
+                labels = labels.to(opt.device)
         bsz = labels.shape[0]
+        print(f"load image/label batch {idx} for training")
+        breakpoint()
 
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
@@ -280,12 +282,14 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
             images = torch.cat([image_aug_tuple[0], image_aug_tuple[1]], dim=0)
             if torch.cuda.is_available():
                 if "device" not in opt:
-                    images = images.cuda(non_blocking=True)
-                    labels = labels.cuda(non_blocking=True)
+                    images = images.cuda()
+                    labels = labels.cuda()
                 else:
-                    images = images.to(opt.device, non_blocking=True)
-                    labels = labels.to(opt.device, non_blocking=True)
+                    images = images.to(opt.device)
+                    labels = labels.to(opt.device)
             bsz = labels.shape[0]
+            print(f"load image/label batch {idx} for validation")
+            breakpoint()
 
             # forward
             with torch.no_grad():
