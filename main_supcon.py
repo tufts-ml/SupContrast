@@ -359,9 +359,13 @@ def test(model, opt):
 def main(opt):
     # build data loader
     train_loader, valid_loader, _ = set_loader(opt, contrast_trans=True)
+    print("data loaders constructed")
+    breakpoint()
 
     # build model
     model = set_model(opt)
+    print("model constructed and on GPU")
+    breakpoint()
 
     # build optimizer
     optimizer = set_optimizer(opt, model)
@@ -376,6 +380,8 @@ def main(opt):
 
         # train for one epoch
         time1 = time.time()
+        print("before training")
+        breakpoint()
         train(train_loader, model, optimizer, epoch, opt, logger)
         time2 = time.time()
         # use valid_loader if present
