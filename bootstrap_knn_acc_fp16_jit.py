@@ -44,10 +44,49 @@ if __name__ == "__main__":
 
     # model_folders_group should have lists of models to compare
     model_folders_group = [
+
+        # ## exp1
+
+        # # batch-1024
+        # # resnet-18-imagenet-100-112x112
+        # [
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-112x112/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_27-05_20_54"),
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-112x112/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_27-22_12_17")
+        # ],
+        # # batch-1024
+        # # resnet-18-imagenet-100-64x64
+        # [
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-64x64/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_49_04"), 
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-64x64/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_22_04"), 
+        # ],
+        # # batch-1024
+        # # resnet-18-imagenet-100-32x32
+        # [
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-32x32/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_24-23_13_40"),
+        #     Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-32x32/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_24-23_13_30")
+        # ],
+
+        ## exp2
+
+        # batch-100
+        # resnet-18-imagenet-100-32x32
         [
-            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_49_04"), 
-            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_20-20_22_04"), 
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-100/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.045_decay_0.0001_bsz_100_temp_0.1_trial_0_cosine_2025_06_27-19_00_45"), 
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-100/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.045_decay_0.0001_bsz_100_temp_0.1_trial_0_cosine_2025_06_27-19_00_45"), 
         ],
+        # batch-1024
+        # resnet-18-imagenet-100-32x32
+        [
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-32x32/imagenet100_models/SINCERE_imagenet100_resnet18_lr_0.75_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_24-23_13_40"),
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp1/resnet-18-imagenet-100-32x32/imagenet100_models/SupCon_imagenet100_resnet18_lr_0.65_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_06_24-23_13_30")
+        ],
+        # batch-5000
+        # resnet-18-imagenet-100-32x32
+        [
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-5000/imagenet100_models/SINCERE_imagenet100_resnet18_lr_2.75_decay_0.0001_bsz_5000_temp_0.1_trial_0_cosine_warm_2025_06_28-10_22_38"),
+            Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-5000/imagenet100_models/SupCon_imagenet100_resnet18_lr_2.15_decay_0.0001_bsz_5000_temp_0.1_trial_0_cosine_warm_2025_06_28-10_18_52")
+        ],
+
     ]
     for k in [1, 5]:
         print(f"{k}NN Evaluation:")
