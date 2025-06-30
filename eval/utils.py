@@ -41,3 +41,23 @@ def read_embeds(model_folders):
         save[model_name] = [train_embeds, test_embeds, train_labels, test_labels]
 
     return save
+
+
+def compute_frequency_baseline_nll(train_labels: torch.Tensor, test_labels: torch.Tensor):
+
+    train_labels = train_labels.long()
+    test_labels = test_labels.long()
+
+    num_classes = len(torch.unique(torch.cat((train_labels, test_labels))))
+    
+    class_counts = torch.bincount(train_labels, minlength=num_classes)
+    class_probabilities = class_counts.float() / len(train_labels)
+    
+    log_probabilities = torch.log(class_probabilities)
+    
+    # (num_test_samples, num_classes)
+    baseline_predictions = log_probabilities.unsqueeze(0).repeat(len(test_labels), 1)
+    
+    nll = F.nll_loss(baseline_predictions, test_labels, reduction='mean')
+    
+    return nll.item()
