@@ -120,6 +120,9 @@ def parse_option():
     parser.add_argument(
         "--jit", action="store_true", help="use jit compiler on model, loss"
     )
+    parser.add_argument(
+        "--save_sub_dir", type=str, default="", help="create sub directory in save/SupCon/ for model and tensorboard"
+    )
 
     opt = parser.parse_args()
 
@@ -137,8 +140,8 @@ def parse_option():
             opt.data_folder = "/cluster/tufts/hugheslab/datasets/ImageNet/train/"
         else:
             opt.data_folder = "./datasets/"
-    opt.model_path = "./save/SupCon/{}_models".format(opt.dataset)
-    opt.tb_path = "./save/SupCon/{}_tensorboard".format(opt.dataset)
+    opt.model_path = f"./save/SupCon/{opt.save_sub_dir}{opt.dataset}_models"
+    opt.tb_path = f"./save/SupCon/{opt.save_sub_dir}{opt.dataset}_tensorboard"
 
     iterations = opt.lr_decay_epochs.split(",")
     opt.lr_decay_epochs = list([])
