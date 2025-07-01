@@ -20,56 +20,86 @@ from torch.amp import autocast, GradScaler
 
 
 def parse_option():
-    parser = argparse.ArgumentParser('argument for training')
+    parser = argparse.ArgumentParser("argument for training")
 
-    parser.add_argument('--print_freq', type=int, default=10,
-                        help='print frequency')
-    parser.add_argument('--save_freq', type=int, default=50,
-                        help='save frequency')
-    parser.add_argument('--batch_size', type=int, default=256,
-                        help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=16,
-                        help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=100,
-                        help='number of training epochs')
-
-    # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.1,
-                        help='learning rate')
-    parser.add_argument('--lr_decay_epochs', type=str, default='60,75,90',
-                        help='where to decay lr, can be a list')
-    parser.add_argument('--lr_decay_rate', type=float, default=0.2,
-                        help='decay rate for learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0,
-                        help='weight decay')
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='momentum')
-
-    # model dataset
-    parser.add_argument('--model', type=str, default='resnet50')
-    parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
-                                 'aircraft', 'cars', 'food101', 'pet', 'dtd', 'flowers', 'path'],
-                        help='dataset')
-    parser.add_argument('--valid_split', type=float, default=0,
-                        help="proportion of train data to use for validation set")
-    parser.add_argument('--size', type=int, default=32,
-                        help='size of images after resizing')
-
-    # other setting
-    parser.add_argument('--cosine', action='store_true',
-                        help='using cosine annealing')
-    parser.add_argument('--warm', action='store_true',
-                        help='warm-up for large batch training')
-
-    parser.add_argument('--ckpt', type=str, default='',
-                        help='path to pre-trained model')
-
+    parser.add_argument("--print_freq", type=int, default=10, help="print frequency")
+    parser.add_argument("--save_freq", type=int, default=50, help="save frequency")
+    parser.add_argument("--batch_size", type=int, default=256, help="batch_size")
     parser.add_argument(
-        "--mixed_precision", action="store_true", help="use torch.amp for mixed precision"
+        "--num_workers", type=int, default=16, help="num of workers to use"
     )
     parser.add_argument(
-        "--save_sub_dir", type=str, default="", help="create sub directory in save/SupCon/ for model and tensorboard"
+        "--epochs", type=int, default=100, help="number of training epochs"
+    )
+
+    # optimization
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.1, help="learning rate"
+    )
+    parser.add_argument(
+        "--lr_decay_epochs",
+        type=str,
+        default="60,75,90",
+        help="where to decay lr, can be a list",
+    )
+    parser.add_argument(
+        "--lr_decay_rate", type=float, default=0.2, help="decay rate for learning rate"
+    )
+    parser.add_argument("--weight_decay", type=float, default=0, help="weight decay")
+    parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
+
+    # model dataset
+    parser.add_argument("--model", type=str, default="resnet50")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="cifar10",
+        choices=[
+            "cifar10",
+            "cifar100",
+            "imagenet100",
+            "imagenet",
+            "cifar2",
+            "aircraft",
+            "cars",
+            "food101",
+            "pet",
+            "dtd",
+            "flowers",
+            "path",
+        ],
+        help="dataset",
+    )
+    parser.add_argument(
+        "--valid_split",
+        type=float,
+        default=0,
+        help="proportion of train data to use for validation set",
+    )
+    parser.add_argument(
+        "--size", type=int, default=32, help="size of images after resizing"
+    )
+
+    # other setting
+    parser.add_argument("--cosine", action="store_true", help="using cosine annealing")
+    parser.add_argument(
+        "--warm", action="store_true", help="warm-up for large batch training"
+    )
+
+    parser.add_argument(
+        "--ckpt", type=str, default="", help="path to pre-trained model"
+    )
+
+    parser.add_argument(
+        "--mixed_precision",
+        action="store_true",
+        help="use torch.amp for mixed precision",
+    )
+    parser.add_argument(
+        "--save_sub_dir",
+        type=str,
+        default="",
+        help="create sub directory in save/SupCon/ for model and tensorboard",
     )
 
     opt = parser.parse_args()
@@ -78,64 +108,69 @@ def parse_option():
     opt.scaler = GradScaler(device="cuda") if opt.mixed_precision else None
 
     # set the path according to the environment
-    if opt.dataset == 'imagenet100':
-        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet100/train/'
-    elif opt.dataset == 'imagenet':
-        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet/train/'
+    if opt.dataset == "imagenet100":
+        opt.data_folder = "/cluster/tufts/hugheslab/datasets/ImageNet100/train/"
+    elif opt.dataset == "imagenet":
+        opt.data_folder = "/cluster/tufts/hugheslab/datasets/ImageNet/train/"
     else:
-        opt.data_folder = './datasets/'
+        opt.data_folder = "./datasets/"
 
-    iterations = opt.lr_decay_epochs.split(',')
+    iterations = opt.lr_decay_epochs.split(",")
     opt.lr_decay_epochs = list([])
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
     # get the method used by the checkpoint by grabbing everything before first _ in folder name
     ckpt_method = Path(opt.ckpt).parts[-2].partition("_")[0]
-    opt.model_name = '{}_lr_{}_bsz_{}_{}'.\
-        format(opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method)
+    opt.model_name = "{}_lr_{}_bsz_{}_{}".format(
+        opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method
+    )
 
     if opt.cosine:
-        opt.model_name = '{}_cosine'.format(opt.model_name)
+        opt.model_name = "{}_cosine".format(opt.model_name)
 
     # warm-up for large-batch training,
     if opt.warm:
-        opt.model_name = '{}_warm'.format(opt.model_name)
+        opt.model_name = "{}_warm".format(opt.model_name)
         opt.warmup_from = 0.01
         opt.warm_epochs = 10
         if opt.cosine:
-            eta_min = opt.learning_rate * (opt.lr_decay_rate ** 3)
-            opt.warmup_to = eta_min + (opt.learning_rate - eta_min) * (
-                    1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
+            eta_min = opt.learning_rate * (opt.lr_decay_rate**3)
+            opt.warmup_to = (
+                eta_min
+                + (opt.learning_rate - eta_min)
+                * (1 + math.cos(math.pi * opt.warm_epochs / opt.epochs))
+                / 2
+            )
         else:
             opt.warmup_to = opt.learning_rate
 
-    if opt.dataset == 'cifar10':
+    if opt.dataset == "cifar10":
         opt.n_cls = 10
-    elif opt.dataset == 'cifar100':
+    elif opt.dataset == "cifar100":
         opt.n_cls = 100
-    elif opt.dataset == 'cifar2':
+    elif opt.dataset == "cifar2":
         opt.n_cls = 2
-    elif opt.dataset == 'imagenet100':
+    elif opt.dataset == "imagenet100":
         opt.n_cls = 100
-    elif opt.dataset == 'imagenet':
+    elif opt.dataset == "imagenet":
         opt.n_cls = 1000
-    elif opt.dataset == 'aircraft':
+    elif opt.dataset == "aircraft":
         opt.n_cls = 102
-    elif opt.dataset == 'cars':
+    elif opt.dataset == "cars":
         opt.n_cls = 196
-    elif opt.dataset == 'food101':
+    elif opt.dataset == "food101":
         opt.n_cls = 101
-    elif opt.dataset == 'pet':
+    elif opt.dataset == "pet":
         opt.n_cls = 37
-    elif opt.dataset == 'dtd':
+    elif opt.dataset == "dtd":
         opt.n_cls = 47
-    elif opt.dataset == 'flowers':
+    elif opt.dataset == "flowers":
         opt.n_cls = 102
     else:
-        raise ValueError('dataset not supported: {}'.format(opt.dataset))
+        raise ValueError("dataset not supported: {}".format(opt.dataset))
 
-    opt.model_path = f'./save/linear/{opt.save_sub_dir}{opt.dataset}_models'
+    opt.model_path = f"./save/linear/{opt.save_sub_dir}{opt.dataset}_models"
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
@@ -152,8 +187,8 @@ def set_model(opt):
 
     classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
 
-    ckpt = torch.load(opt.ckpt, map_location='cpu')
-    state_dict = ckpt['model']
+    ckpt = torch.load(opt.ckpt, map_location="cpu")
+    state_dict = ckpt["model"]
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
@@ -196,7 +231,6 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
         with autocast("cuda", enabled=opt.mixed_precision):
-
             # compute loss
             with torch.no_grad():
                 features = model.encoder(images)
@@ -219,20 +253,27 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
             opt.scaler.step(optimizer)
             opt.scaler.update()
 
-
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
 
         # print info
         if (idx + 1) % opt.print_freq == 0:
-            print('Train: [{0}][{1}/{2}]\t'
-                  'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'loss {loss.val:.3f} ({loss.avg:.3f})\t'
-                  'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                   epoch, idx + 1, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1))
+            print(
+                "Train: [{0}][{1}/{2}]\t"
+                "BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                "DT {data_time.val:.3f} ({data_time.avg:.3f})\t"
+                "loss {loss.val:.3f} ({loss.avg:.3f})\t"
+                "Acc@1 {top1.val:.3f} ({top1.avg:.3f})".format(
+                    epoch,
+                    idx + 1,
+                    len(train_loader),
+                    batch_time=batch_time,
+                    data_time=data_time,
+                    loss=losses,
+                    top1=top1,
+                )
+            )
             sys.stdout.flush()
 
     return losses.avg, top1.avg
@@ -274,14 +315,20 @@ def validate(val_loader, model, classifier, criterion, opt):
             end = time.time()
 
             if idx % opt.print_freq == 0:
-                print('Test: [{0}/{1}]\t'
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                       idx, len(val_loader), batch_time=batch_time,
-                       loss=losses, top1=top1))
+                print(
+                    "Test: [{0}/{1}]\t"
+                    "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                    "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
+                    "Acc@1 {top1.val:.3f} ({top1.avg:.3f})".format(
+                        idx,
+                        len(val_loader),
+                        batch_time=batch_time,
+                        loss=losses,
+                        top1=top1,
+                    )
+                )
 
-    print(' * Acc@1 {top1.avg:.3f} | Acc@5 {top5.avg:.3f}'.format(top1=top1, top5=top5))
+    print(" * Acc@1 {top1.avg:.3f} | Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
     return losses.avg, top1.avg
 
 
@@ -330,11 +377,15 @@ def main():
 
         # train for one epoch
         time1 = time.time()
-        loss, acc = train(train_loader, model, classifier, criterion,
-                          optimizer, epoch, opt)
+        loss, acc = train(
+            train_loader, model, classifier, criterion, optimizer, epoch, opt
+        )
         time2 = time.time()
-        print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
-            epoch, time2 - time1, acc))
+        print(
+            "Train epoch {}, total time {:.2f}, accuracy:{:.2f}".format(
+                epoch, time2 - time1, acc
+            )
+        )
 
         # eval for one epoch
         if val_loader is not None:
@@ -345,17 +396,16 @@ def main():
         elif epoch == opt.epochs:
             validate(test_loader, model, classifier, criterion, opt)
 
-    print("-"*25)
+    print("-" * 25)
     print(opt.save_folder)
-    print('best accuracy: {:.2f}'.format(best_acc))
-    print("-"*25)
+    print("best accuracy: {:.2f}".format(best_acc))
+    print("-" * 25)
 
     # save the last model
-    save_file = os.path.join(
-        opt.save_folder, 'last.pth')
+    save_file = os.path.join(opt.save_folder, "last.pth")
     save_model(model, optimizer, opt, opt.epochs, save_file)
     cache_outputs(test_loader, model, classifier, opt)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
