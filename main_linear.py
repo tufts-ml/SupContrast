@@ -16,6 +16,8 @@ from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import save_model, set_optimizer
 from networks.resnet_big import SupConResNet, LinearClassifier
 
+from torch.amp import autocast, GradScaler
+
 
 def parse_option():
     parser = argparse.ArgumentParser('argument for training')
@@ -63,7 +65,17 @@ def parse_option():
     parser.add_argument('--ckpt', type=str, default='',
                         help='path to pre-trained model')
 
+    parser.add_argument(
+        "--mixed_precision", action="store_true", help="use torch.amp for mixed precision"
+    )
+    parser.add_argument(
+        "--save_sub_dir", type=str, default="", help="create sub directory in save/SupCon/ for model and tensorboard"
+    )
+
     opt = parser.parse_args()
+
+    # mixed precision training
+    opt.scaler = GradScaler(device="cuda") if opt.mixed_precision else None
 
     # set the path according to the environment
     if opt.dataset == 'imagenet100':
@@ -123,7 +135,7 @@ def parse_option():
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
 
-    opt.model_path = './save/linear/{}_models'.format(opt.dataset)
+    opt.model_path = f'./save/linear/{opt.save_sub_dir}{opt.dataset}_models'
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
@@ -183,11 +195,13 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
-        # compute loss
-        with torch.no_grad():
-            features = model.encoder(images)
-        output = classifier(features.detach())
-        loss = criterion(output, labels)
+        with autocast("cuda", enabled=opt.mixed_precision):
+
+            # compute loss
+            with torch.no_grad():
+                features = model.encoder(images)
+            output = classifier(features.detach())
+            loss = criterion(output, labels)
 
         # update metric
         losses.update(loss.item(), bsz)
@@ -196,8 +210,15 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
 
         # SGD
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+
+        if not opt.mixed_precision:
+            loss.backward()
+            optimizer.step()
+        else:
+            opt.scaler.scale(loss).backward()
+            opt.scaler.step(optimizer)
+            opt.scaler.update()
+
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -235,8 +256,9 @@ def validate(val_loader, model, classifier, criterion, opt):
             bsz = labels.shape[0]
 
             # forward
-            output = classifier(model.encoder(images))
-            loss = criterion(output, labels)
+            with autocast("cuda", enabled=opt.mixed_precision):
+                output = classifier(model.encoder(images))
+                loss = criterion(output, labels)
 
             # update metric
             losses.update(loss.item(), bsz)
@@ -323,7 +345,10 @@ def main():
         elif epoch == opt.epochs:
             validate(test_loader, model, classifier, criterion, opt)
 
+    print("-"*25)
+    print(opt.save_folder)
     print('best accuracy: {:.2f}'.format(best_acc))
+    print("-"*25)
 
     # save the last model
     save_file = os.path.join(
