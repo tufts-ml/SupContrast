@@ -120,7 +120,7 @@ def parse_option():
     return opt
 
 
-def set_loader(opt, contrast_trans=False, for_test=False):
+def set_loader(opt, contrast_trans=False, for_test=False, for_cache=False):
     # dataset specific normalization
     if opt.dataset == 'cifar10':
         mean = (0.4914, 0.4822, 0.4465)
@@ -190,12 +190,21 @@ def set_loader(opt, contrast_trans=False, for_test=False):
             ]))
     # non-contrastive data transforms
     else:
-        train_transform = transforms.Compose([
-            transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ])
+
+        if for_cache:
+            train_transform = transforms.Compose([
+                transforms.Resize([opt.size, opt.size]),
+                transforms.ToTensor(),
+                normalize,
+            ])
+        else:
+            train_transform = transforms.Compose([
+                transforms.RandomResizedCrop(size=opt.size, scale=(0.2, 1.)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ])
+            
         test_transform = transforms.Compose([
             transforms.Resize([opt.size, opt.size]),
             transforms.ToTensor(),

@@ -106,7 +106,7 @@ def main(opt):
     # build data loaders for train and test sets
     # contrastive transformations are disabled as we only need standard augmentations
     print("Loading data...")
-    train_loader, _, test_loader = set_loader(opt, contrast_trans=False)
+    train_loader, _, test_loader = set_loader(opt, contrast_trans=False, for_cache=True)
     print("Data done")
 
     # build and load model from the specified checkpoint
