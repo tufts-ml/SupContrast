@@ -8,9 +8,11 @@ First, extract feature embeddings from your trained model and save them to disk.
 
 * **Script:** Use `main_linear_cache_features.py` to generate features. It's recommended to use the helper script `config_linear_cache_features/main_linear_cache_features_run.py` to run this for multiple datasets and checkpoints.
 
-* **Configuration:** This step is critical for ensuring consistency. The parameters set here must perfectly match both the original pre-trained model and the final linear probing setup.
+* **Configuration:** The parameters set here must perfectly match the configuration you intend to use for the final linear probing in Step 2.
+
   * **`model_name`**: Must match the architecture of the model saved in the checkpoint (e.g., `resnet18`).
-  * **`image_size`**: Must match the image size the checkpoint model was trained on (e.g., `32` for 32x32 images). This same image size must be used again for linear probing in Step 2.
+
+  * **`image_size`**: Must match the image size you will use for linear probing in Step 2 (e.g., `32` for 32x32 images).
 
 * **Output:** The script creates a `{dataset_name}_features` directory inside your model's checkpoint folder. This new directory will contain `train_features.pt` and `test_features.pt`.
 
