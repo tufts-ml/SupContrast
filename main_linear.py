@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import sys
 import argparse
 import time
@@ -9,6 +7,8 @@ from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
+from torch.utils.data import Dataset, DataLoader, Subset
+from sklearn.model_selection import train_test_split
 
 from main_ce import set_loader
 from util import AverageMeter
@@ -17,6 +17,20 @@ from util import save_model, set_optimizer
 from networks.resnet_big import SupConResNet, LinearClassifier
 
 from torch.amp import autocast, GradScaler
+
+
+class CachedDataset(Dataset):
+    """Dataset for loading pre-computed features."""
+
+    def __init__(self, features, labels):
+        self.features = features
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, idx):
+        return self.features[idx], self.labels[idx]
 
 
 def parse_option():
@@ -89,7 +103,11 @@ def parse_option():
     parser.add_argument(
         "--ckpt", type=str, default="", help="path to pre-trained model"
     )
-
+    parser.add_argument(
+        "--use_cache_features",
+        action="store_true",
+        help="load pre-computed features from cache",
+    )
     parser.add_argument(
         "--mixed_precision",
         action="store_true",
@@ -121,7 +139,7 @@ def parse_option():
         opt.lr_decay_epochs.append(int(it))
 
     # get the method used by the checkpoint by grabbing everything before first _ in folder name
-    ckpt_method = Path(opt.ckpt).parts[-2].partition("_")[0]
+    ckpt_method = Path(opt.ckpt).parent.name
     opt.model_name = "{}_lr_{}_bsz_{}_{}".format(
         opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method
     )
@@ -170,7 +188,11 @@ def parse_option():
     else:
         raise ValueError("dataset not supported: {}".format(opt.dataset))
 
-    opt.model_path = f"./save/linear/{opt.save_sub_dir}{opt.dataset}_models"
+    opt.model_path = (
+        f"./save/linear/{opt.save_sub_dir}"
+        if opt.save_sub_dir
+        else f"./save/linear/{opt.dataset}_models"
+    )
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
@@ -187,26 +209,84 @@ def set_model(opt):
 
     classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
 
-    ckpt = torch.load(opt.ckpt, map_location="cpu")
-    state_dict = ckpt["model"]
+    if not opt.use_cache_features:
+        ckpt = torch.load(opt.ckpt, map_location="cpu", weights_only=False)
+        state_dict = ckpt["model"]
+
+        if torch.cuda.is_available():
+            if torch.cuda.device_count() > 1:
+                model.encoder = torch.nn.DataParallel(model.encoder)
+            else:
+                new_state_dict = {}
+                for k, v in state_dict.items():
+                    k = k.replace("module.", "")
+                    new_state_dict[k] = v
+                state_dict = new_state_dict
+            model = model.cuda()
+            model.load_state_dict(state_dict)
 
     if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.DataParallel(model.encoder)
-        else:
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                k = k.replace("module.", "")
-                new_state_dict[k] = v
-            state_dict = new_state_dict
-        model = model.cuda()
         classifier = classifier.cuda()
         criterion = criterion.cuda()
         cudnn.benchmark = True
 
-        model.load_state_dict(state_dict)
-
     return model, classifier, criterion
+
+
+def set_cached_loader(opt):
+    """
+    Creates and returns dataloaders for cached features, handling validation split.
+    """
+    cache_path = Path(opt.ckpt).parent / f"{opt.dataset}_features"
+    train_file = cache_path / "train_features.pt"
+    test_file = cache_path / "test_features.pt"
+
+    if not train_file.is_file() or not test_file.is_file():
+        print(f"Cached features not found at {cache_path}")
+        print("Please run precompute_features.py first.")
+        sys.exit(1)
+
+    train_data = torch.load(train_file)
+    test_data = torch.load(test_file)
+
+    train_dataset = CachedDataset(train_data["features"], train_data["labels"])
+    test_dataset = CachedDataset(test_data["features"], test_data["labels"])
+
+    val_loader = None
+    if opt.valid_split > 0:
+        train_indices, val_indices = train_test_split(
+            list(range(len(train_dataset))),
+            test_size=opt.valid_split,
+            stratify=train_dataset.labels,
+            random_state=42,
+        )
+        val_dataset = Subset(train_dataset, val_indices)
+        train_dataset = Subset(train_dataset, train_indices)
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=opt.batch_size,
+            shuffle=False,
+            num_workers=opt.num_workers,
+            pin_memory=True,
+        )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=opt.batch_size,
+        shuffle=True,
+        num_workers=opt.num_workers,
+        pin_memory=True,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=opt.batch_size,
+        shuffle=False,
+        num_workers=opt.num_workers,
+        pin_memory=True,
+    )
+
+    return train_loader, val_loader, test_loader
 
 
 def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
@@ -220,10 +300,10 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
     top1 = AverageMeter()
 
     end = time.time()
-    for idx, (images, labels) in enumerate(train_loader):
+    for idx, (data, labels) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
-        images = images.cuda(non_blocking=True)
+        data = data.cuda(non_blocking=True)
         labels = labels.cuda(non_blocking=True)
         bsz = labels.shape[0]
 
@@ -232,8 +312,11 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
 
         with autocast("cuda", enabled=opt.mixed_precision):
             # compute loss
-            with torch.no_grad():
-                features = model.encoder(images)
+            if not opt.use_cache_features:
+                with torch.no_grad():
+                    features = model.encoder(data)
+            else:
+                features = data
             output = classifier(features.detach())
             loss = criterion(output, labels)
 
@@ -291,14 +374,18 @@ def validate(val_loader, model, classifier, criterion, opt):
 
     with torch.no_grad():
         end = time.time()
-        for idx, (images, labels) in enumerate(val_loader):
-            images = images.float().cuda()
+        for idx, (data, labels) in enumerate(val_loader):
+            data = data.float().cuda()
             labels = labels.cuda()
             bsz = labels.shape[0]
 
             # forward
             with autocast("cuda", enabled=opt.mixed_precision):
-                output = classifier(model.encoder(images))
+                if not opt.use_cache_features:
+                    features = model.encoder(data)
+                else:
+                    features = data
+                output = classifier(features)
                 loss = criterion(output, labels)
 
             # update metric
@@ -337,20 +424,28 @@ def cache_outputs(val_loader, model, classifier, opt):
     model.eval()
     classifier.eval()
     # caches for outputs
-    embeds = torch.empty((0, 2048))
-    preds = torch.empty((0, opt.n_cls))
-    labels = torch.empty((0,))
+    embeds = []
+    preds = []
+    labels_list = []
     with torch.no_grad():
-        for b_images, b_labels in val_loader:
-            b_images = b_images.float().cuda()
-            b_labels = b_labels.cuda()
-            # forward
-            b_embeds = model.encoder(b_images)
+        for data, labels in val_loader:
+            data = data.float().cuda()
+
+            if not opt.use_cache_features:
+                b_embeds = model.encoder(data)
+            else:
+                b_embeds = data
+
             b_preds = classifier(b_embeds)
-            # cache
-            embeds = torch.vstack((embeds, b_embeds.cpu()))
-            preds = torch.vstack((preds, b_preds.cpu()))
-            labels = torch.hstack((labels, b_labels.cpu()))
+
+            embeds.append(b_embeds.cpu())
+            preds.append(b_preds.cpu())
+            labels_list.append(labels.cpu())
+
+    embeds = torch.cat(embeds)
+    preds = torch.cat(preds)
+    labels = torch.cat(labels_list)
+
     # save caches
     torch.save(embeds, os.path.join(opt.save_folder, "embeds.pth"))
     torch.save(preds, os.path.join(opt.save_folder, "preds.pth"))
@@ -359,11 +454,16 @@ def cache_outputs(val_loader, model, classifier, opt):
 
 
 def main():
+    time_start_main = time.time()
+
     best_acc = 0
     opt = parse_option()
 
     # build data loader
-    train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
+    if opt.use_cache_features:
+        train_loader, val_loader, test_loader = set_cached_loader(opt)
+    else:
+        train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
@@ -398,13 +498,19 @@ def main():
 
     print("-" * 25)
     print(opt.save_folder)
-    print("best accuracy: {:.2f}".format(best_acc))
+    print(f"best accuracy: {best_acc}")
+    print(f"last accuracy: {val_acc}")
     print("-" * 25)
 
     # save the last model
     save_file = os.path.join(opt.save_folder, "last.pth")
-    save_model(model, optimizer, opt, opt.epochs, save_file)
+    save_model(classifier, optimizer, opt, opt.epochs, save_file)
+
+    # save features and predictions
     cache_outputs(test_loader, model, classifier, opt)
+
+    time_end_main = time.time()
+    print(f"\nTotal Time {(time_end_main-time_start_main) // 60} minute")
 
 
 if __name__ == "__main__":
