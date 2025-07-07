@@ -493,8 +493,8 @@ def main():
             if val_acc > best_acc:
                 best_acc = val_acc
         # print final accuracy for the test set evaluation run
-        elif epoch == opt.epochs:
-            validate(test_loader, model, classifier, criterion, opt)
+        if epoch == opt.epochs:
+            _, _ = validate(test_loader, model, classifier, criterion, opt)
 
     print("-" * 25)
     print(opt.save_folder)
