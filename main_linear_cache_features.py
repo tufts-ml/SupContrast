@@ -25,10 +25,26 @@ def parse_option():
     parser.add_argument('--model', type=str, default='resnet50',
                         choices=['resnet18', 'resnet50', 'resnet200'],
                         help='model architecture name')
-    parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
-                                 'aircraft', 'cars', 'path'],
-                        help='dataset')
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="cifar10",
+        choices=[
+            "cifar10",
+            "cifar100",
+            "imagenet100",
+            "imagenet",
+            "cifar2",
+            "aircraft",
+            "cars",
+            "food101",
+            "pet",
+            "dtd",
+            "flowers",
+            "path",
+        ],
+        help="dataset",
+    )
     parser.add_argument('--size', type=int, default=224,
                         help='size of images after resizing')
 
