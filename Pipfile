@@ -27,6 +27,7 @@ pytest = "*"
 tensorflow = "*"
 seaborn = "*"
 tqdm = "*"
+tbparse = "*"
 
 [torch_cpu]
 torch = {index="pytorch_cpu"}
