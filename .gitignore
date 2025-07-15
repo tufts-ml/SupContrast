@@ -2,6 +2,7 @@
 note/
 # eval figures
 eval/figures
+eval-new/figures
 
 # dataset download folder
 datasets/
