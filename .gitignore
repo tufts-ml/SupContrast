@@ -3,6 +3,8 @@ note/
 # eval figures
 eval/figures
 eval-new/figures
+# large margin figures
+large-margin/figures
 
 # dataset download folder
 datasets/
