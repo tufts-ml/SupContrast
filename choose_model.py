@@ -20,6 +20,12 @@ class choose_model:
 
         self.filenames = {"SINCERE": [], "SupCon": []}
         for filename in os.listdir(self.save_dir):
+            
+            # incomplete run
+            filename_saves = set(os.listdir(self.save_dir / filename))
+            if "last.pth" not in filename_saves:
+                continue
+
             if "SINCERE" in filename:
                 self.filenames["SINCERE"].append(self.save_dir / filename)
             elif "SupCon" in filename:
@@ -34,6 +40,8 @@ class choose_model:
         for tensorboard in os.listdir(self.save_tb_dir):
             self.tensorboards.append(self.save_tb_dir / tensorboard)
 
+        # this is going to have more keys than self.filenames
+        # because failed run still save into this dict
         self.tensorboards_detail = {}
         for tensorboard in self.tensorboards:
             reader = SummaryReader(tensorboard)
@@ -45,6 +53,10 @@ class choose_model:
                 loss_tag = "valid/SupCon"
 
             acc_tag = "valid/Top 1 Accuracy"
+
+            # failed run
+            if len(df) == 0:
+                continue
 
             loss_df = df[df["tag"] == loss_tag]
             loss_best_row_idx = loss_df["value"].idxmin()
@@ -183,10 +195,16 @@ class choose_model:
 
 
 if __name__ == "__main__":
+    # choose = choose_model(
+    #     k=1,
+    #     save_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4.3/resnet-18-cifar10-32x32-batch-100/cifar10_models/",
+    #     save_tb_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4.3/resnet-18-cifar10-32x32-batch-100/cifar10_tensorboard/",
+    # )
+
     choose = choose_model(
         k=1,
-        save_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4/resnet-18-cifar10-32x32-batch-100/cifar10_models/",
-        save_tb_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4/resnet-18-cifar10-32x32-batch-100/cifar10_tensorboard/",
+        save_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-5000/imagenet100_models/",
+        save_tb_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp2/resnet-18-imagenet-100-32x32-batch-5000/imagenet100_tensorboard/"
     )
 
     choose.process_result("SINCERE")
