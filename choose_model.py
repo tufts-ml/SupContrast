@@ -20,6 +20,10 @@ class choose_model:
 
         self.filenames = {"SINCERE": [], "SupCon": []}
         for filename in os.listdir(self.save_dir):
+
+            # model run is a directory
+            if not (self.save_dir / filename).is_dir():
+                continue
             
             # incomplete run
             filename_saves = set(os.listdir(self.save_dir / filename))
@@ -107,18 +111,30 @@ class choose_model:
                         "lr": lr,
                         "decay": decay,
                         "k": int(self.k),
-                        "best loss (step, value)": self.tensorboards_detail[
+                        "best loss step": self.tensorboards_detail[
                             filename.name
-                        ]["best loss (step, value)"],
-                        "last loss (step, value)": self.tensorboards_detail[
+                        ]["best loss (step, value)"][0],
+                        "best loss value": self.tensorboards_detail[
                             filename.name
-                        ]["last loss (step, value)"],
-                        "best accuracy (step, value)": self.tensorboards_detail[
+                        ]["best loss (step, value)"][1],
+                        "last loss step": self.tensorboards_detail[
                             filename.name
-                        ]["best accuracy (step, value)"],
-                        "last accuracy (step, value)": self.tensorboards_detail[
+                        ]["last loss (step, value)"][0],
+                        "last loss value": self.tensorboards_detail[
                             filename.name
-                        ]["last accuracy (step, value)"],
+                        ]["last loss (step, value)"][1],
+                        "best accuracy step": self.tensorboards_detail[
+                            filename.name
+                        ]["best accuracy (step, value)"][0],
+                        "best accuracy value": self.tensorboards_detail[
+                            filename.name
+                        ]["best accuracy (step, value)"][1],
+                        "last accuracy step": self.tensorboards_detail[
+                            filename.name
+                        ]["last accuracy (step, value)"][0],
+                        "last accuracy value": self.tensorboards_detail[
+                            filename.name
+                        ]["last accuracy (step, value)"][1],
                         "test accuracy": test_metric_mean.item(),
                         "median target similarity": mts.item(),
                         "median noise similarity": mns.item(),
@@ -195,11 +211,6 @@ class choose_model:
 
 
 if __name__ == "__main__":
-    # choose = choose_model(
-    #     k=1,
-    #     save_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4.3/resnet-18-cifar10-32x32-batch-100/cifar10_models/",
-    #     save_tb_dir="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp4.3/resnet-18-cifar10-32x32-batch-100/cifar10_tensorboard/",
-    # )
 
     choose = choose_model(
         k=1,
