@@ -225,6 +225,19 @@ def set_model(opt):
     return torch.compile(model) if opt.jit else model
 
 
+# def check_gradients(model):
+#     nan_found = False
+#     for name, param in model.named_parameters():
+#         if param.grad is not None:
+#             if torch.isnan(param.grad).any():
+#                 print(f"NaN gradient in {name}")
+#                 nan_found = True
+#             if torch.isinf(param.grad).any():
+#                 print(f"Inf gradient in {name}")
+#                 nan_found = True
+#     return nan_found
+
+
 def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
     sincere_loss_func = loss_funcs["sincere"]
@@ -236,6 +249,7 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
     av_sincere = AverageMeter()
     av_supcon = AverageMeter()
     av_acc = AverageMeter()
+    av_grad = AverageMeter()
 
     end = time.time()
     # change reshuffle split of data across GPUs
@@ -292,6 +306,11 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
                     "contrastive method not supported: {}".format(opt.method)
                 )
 
+            total_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(), 
+                float('inf')
+            ).item()    
+
             optimizer.step()
 
         else:
@@ -304,8 +323,20 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
                     "contrastive method not supported: {}".format(opt.method)
                 )
 
+            opt.scaler.unscale_(optimizer)
+            total_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(), 
+                float('inf')
+            ).item()
+
             opt.scaler.step(optimizer)
             opt.scaler.update()
+        
+        # check_gradients(model)
+        if total_norm:
+            av_grad.update(total_norm, 1)
+        else:
+            print("\n**Gradient NaN**\n")
 
         # compute accuracy
         with torch.no_grad():
@@ -341,6 +372,7 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
         logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
         logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
         logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+        logger.add_scalar(f"{log_folder}Gradient Norm", av_grad.avg, epoch)
     # log values independent of forward passes
     logger.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
     return
