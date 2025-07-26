@@ -140,8 +140,8 @@ def parse_option():
 
     # get the method used by the checkpoint by grabbing everything before first _ in folder name
     ckpt_method = Path(opt.ckpt).parent.name
-    opt.model_name = "{}_lr_{}_bsz_{}_{}".format(
-        opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method
+    opt.model_name = "{}_lr_{}_decay_{}_bsz_{}_{}".format(
+        opt.dataset, opt.learning_rate, opt.weight_decay, opt.batch_size, ckpt_method
     )
 
     if opt.cosine:
