@@ -328,7 +328,7 @@ def main():
     # save the last model
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
-    save_model(model, optimizer, opt, opt.epochs, save_file)
+    save_model(classifier, optimizer, opt, opt.epochs, save_file)
     cache_outputs(test_loader, model, classifier, opt)
 
 
