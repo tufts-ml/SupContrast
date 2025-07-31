@@ -16,7 +16,7 @@ search_dict = {
 }
 
 slurm_dict = {
-    "-p": "gpu,ccgpu",
+    "-p": "gpu",
     "-t": "2-0:0:0",
     "--gres": "gpu:a100:1",
     "-c": 16,
