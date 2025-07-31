@@ -10,8 +10,8 @@ search_dict = {
     "--size": 224,
     "--dataset": "dtd",
     "--ckpt": [
-        "save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_14-18_15_23",  # noqa: E501
-        "save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_15-12_41_27",  # noqa: E501
+        "save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet200_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2025_01_14-18_15_23/last.pth",  # noqa: E501
+        "save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_1024_temp_0.1_trial_0_cosine_warm_2025_01_15-12_41_27/last.pth",  # noqa: E501
     ],
 }
 
