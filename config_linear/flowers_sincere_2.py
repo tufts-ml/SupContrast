@@ -10,7 +10,7 @@ search_dict = {
     "--size": 224,
     "--dataset": "flowers",
     "--ckpt": [
-        "save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_14-18_23_15/last.pth",  # noqa: E501
+        # "save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet200_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2025_01_14-18_23_15/last.pth",  # noqa: E501
         "save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_1024_temp_0.05_trial_0_cosine_warm_2025_01_15-12_41_27/last.pth",  # noqa: E501
     ],
 }
