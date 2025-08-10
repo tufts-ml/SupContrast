@@ -333,7 +333,7 @@ def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
             opt.scaler.update()
         
         # check_gradients(model)
-        if total_norm:
+        if total_norm is not None and math.isfinite(total_norm):
             av_grad.update(total_norm, 1)
         else:
             print("\n**Gradient NaN**\n")
