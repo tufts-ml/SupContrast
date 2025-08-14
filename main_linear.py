@@ -139,10 +139,11 @@ def set_model(opt):
     criterion = torch.nn.CrossEntropyLoss()
 
     if type(model.head) is torch.nn.Linear:
-        classifier = torch.nn.Linear(model.head.out_features, opt.n_cls)
+        opt.hidden_dim = model.head.out_features
     else:
         # ignore warning from case where head is Linear instead of Sequential
-        classifier = torch.nn.Linear(model.head[-1].out_features, opt.n_cls)  # type: ignore
+        opt.hidden_dim = model.head[-1].out_features  # type: ignore
+    classifier = torch.nn.Linear(opt.hidden_dim, opt.n_cls)
 
     ckpt = torch.load(opt.ckpt, map_location='cpu')
     state_dict = ckpt['model']
@@ -272,7 +273,7 @@ def cache_outputs(val_loader, model, classifier, opt):
     model.eval()
     classifier.eval()
     # caches for outputs
-    embeds = torch.empty((0, 2048))
+    embeds = torch.empty((0, opt.hidden_dim))
     preds = torch.empty((0, opt.n_cls))
     labels = torch.empty((0,))
     with torch.no_grad():
