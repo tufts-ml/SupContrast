@@ -145,7 +145,7 @@ def set_model(opt):
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.DataParallel(model.encoder)
+            model = torch.nn.DataParallel(model)
         else:
             new_state_dict = {}
             for k, v in state_dict.items():
@@ -185,7 +185,7 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
 
         # compute loss
         with torch.no_grad():
-            features = model.encoder(images)
+            features = model(images)
         output = classifier(features.detach())
         loss = criterion(output, labels)
 
@@ -235,7 +235,7 @@ def validate(val_loader, model, classifier, criterion, opt):
             bsz = labels.shape[0]
 
             # forward
-            output = classifier(model.encoder(images))
+            output = classifier(model(images))
             loss = criterion(output, labels)
 
             # update metric
@@ -276,7 +276,7 @@ def cache_outputs(val_loader, model, classifier, opt):
             b_images = b_images.float().cuda()
             b_labels = b_labels.cuda()
             # forward
-            b_embeds = model.encoder(b_images)
+            b_embeds = model(b_images)
             b_preds = classifier(b_embeds)
             # cache
             embeds = torch.vstack((embeds, b_embeds.cpu()))
