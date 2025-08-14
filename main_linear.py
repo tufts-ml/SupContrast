@@ -14,7 +14,7 @@ from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import save_model, set_optimizer
-from networks.resnet_big import SupConResNet, LinearClassifier
+from networks.resnet_big import SupConResNet
 
 
 def parse_option():
@@ -138,7 +138,11 @@ def set_model(opt):
     model = SupConResNet(name=opt.model)
     criterion = torch.nn.CrossEntropyLoss()
 
-    classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
+    if type(model.head) is torch.nn.Linear:
+        classifier = torch.nn.Linear(model.head.out_features, opt.n_cls)
+    else:
+        # ignore warning from case where head is Linear instead of Sequential
+        classifier = torch.nn.Linear(model.head[-1].out_features, opt.n_cls)  # type: ignore
 
     ckpt = torch.load(opt.ckpt, map_location='cpu')
     state_dict = ckpt['model']
