@@ -10,9 +10,9 @@ search_dict = {
     "--size": 32,
     "--dataset": "cifar2",
     "--ckpt": [
-        "2024_03_save/SupCon/cifar2_models/SINCERE_cifar2_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_40/",  # noqa: E501
-        "2024_03_save/SupCon/cifar2_models/SupCon_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_42/",  # noqa: E501
-        "2024_03_save/SupCon/cifar2_models/EpsSupInfoNCE_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_23/",  # noqa: E501
+        "2024_03_save/SupCon/cifar2_models/SINCERE_cifar2_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_40/last.pth",  # noqa: E501
+        "2024_03_save/SupCon/cifar2_models/SupCon_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_42/last.pth",  # noqa: E501
+        "2024_03_save/SupCon/cifar2_models/EpsSupInfoNCE_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_23/last.pth",  # noqa: E501
     ],
 }
 
