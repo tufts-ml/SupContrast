@@ -207,7 +207,7 @@ def set_model(opt):
     model = SupConResNet(name=opt.model)
     criterion = torch.nn.CrossEntropyLoss()
 
-    classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
+    classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls, feat_dim=128)
 
     if not opt.use_cache_features:
         ckpt = torch.load(opt.ckpt, map_location="cpu", weights_only=False)
@@ -314,7 +314,7 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
             # compute loss
             if not opt.use_cache_features:
                 with torch.no_grad():
-                    features = model.encoder(data)
+                    features = model(data)
             else:
                 features = data
             output = classifier(features.detach())
@@ -382,7 +382,7 @@ def validate(val_loader, model, classifier, criterion, opt):
             # forward
             with autocast("cuda", enabled=opt.mixed_precision):
                 if not opt.use_cache_features:
-                    features = model.encoder(data)
+                    features = model(data)
                 else:
                     features = data
                 output = classifier(features)
@@ -432,7 +432,7 @@ def cache_outputs(val_loader, model, classifier, opt):
             data = data.float().cuda()
 
             if not opt.use_cache_features:
-                b_embeds = model.encoder(data)
+                b_embeds = model(data)
             else:
                 b_embeds = data
 
