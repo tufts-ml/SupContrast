@@ -98,7 +98,7 @@ def get_features(model, dataloader, desc):
                 images = images.cuda(non_blocking=True)
             
             # forward pass through the encoder to get features
-            features = model.encoder(images)
+            features = model(images)
 
             # move features and labels to CPU and append to lists
             features_list.append(features.cpu())
@@ -155,6 +155,8 @@ def main(opt):
     sys.stdout.flush()
 
     print(f"\nFeature extraction complete for {ckpt_path.name}")
+    print(f"Train \t {train_features.shape} \t {train_labels.shape}")
+    print(f"Test \t {test_features.shape} \t {test_features.shape}")
     print(f"Features saved to: {output_dir}\n")
 
 
