@@ -247,10 +247,15 @@ def set_loader(opt, contrast_trans=False, for_test=False, for_cache=False):
                                              transform=test_transform)
         test_dataset.targets = test_dataset._labels
     elif opt.dataset == 'cars':
-        train_dataset = datasets.StanfordCars(root=opt.data_folder,
+        # August 2025, broken download url link 
+        # (https://github.com/pytorch/vision/issues/7545#issuecomment-1631441616)
+        # Alt:
+        # micromamba install -c conda-forge kaggle
+        # kaggle datasets download -d rickyyyyyyy/torchvision-stanford-cars -p ./datasets/ --unzip
+        train_dataset = datasets.StanfordCars(root=opt.data_folder, download=False,
                                               transform=train_transform)
         train_dataset.targets = [label for _, label in train_dataset._samples]
-        test_dataset = datasets.StanfordCars(root=opt.data_folder,
+        test_dataset = datasets.StanfordCars(root=opt.data_folder, download=False,
                                              split="test",
                                              transform=test_transform)
         test_dataset.targets = [label for _, label in test_dataset._samples]
