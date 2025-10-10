@@ -54,6 +54,9 @@ def parse_option():
     parser.add_argument('--num_workers', type=int, default=8,
                         help='num of workers to use')
 
+    parser.add_argument('--use_projection_head', action='store_true',
+                        help='use projection head for feature extraction')
+
     opt = parser.parse_args()
 
     # set the data folder path based on the dataset
@@ -84,7 +87,7 @@ def set_model(opt):
     return model
 
 
-def get_features(model, dataloader, desc):
+def get_features(model, dataloader, opt, desc):
     """
     Extracts and returns features and labels from a given dataloader.
     The model is set to evaluation mode, and gradients are not computed.
@@ -97,8 +100,11 @@ def get_features(model, dataloader, desc):
             if torch.cuda.is_available():
                 images = images.cuda(non_blocking=True)
             
-            # forward pass through the encoder to get features
-            features = model(images)
+            # forward pass to get features
+            if opt.use_projection_head:
+                features = model(images)
+            else:
+                features = model.encoder(images)
 
             # move features and labels to CPU and append to lists
             features_list.append(features.cpu())
@@ -137,7 +143,7 @@ def main(opt):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # ==> Get and save features for the training set
-    train_features, train_labels = get_features(model, train_loader, "Extracting train features")
+    train_features, train_labels = get_features(model, train_loader, opt, "Extracting train features")
     torch.save(
         {"features": train_features, "labels": train_labels},
         output_dir / "train_features.pt",
@@ -146,7 +152,7 @@ def main(opt):
     sys.stdout.flush()
 
     # ==> Get and save features for the test set
-    test_features, test_labels = get_features(model, test_loader, "Extracting test features")
+    test_features, test_labels = get_features(model, test_loader, opt, "Extracting test features")
     torch.save(
         {"features": test_features, "labels": test_labels},
         output_dir / "test_features.pt",

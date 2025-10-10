@@ -120,6 +120,12 @@ def parse_option():
         help="create sub directory in save/SupCon/ for model and tensorboard",
     )
 
+    parser.add_argument(
+        "--use_projection_head",
+        action="store_true",
+        help="use projection head for feature extraction",
+    )
+
     opt = parser.parse_args()
 
     # mixed precision training
@@ -207,7 +213,12 @@ def set_model(opt):
     model = SupConResNet(name=opt.model)
     criterion = torch.nn.CrossEntropyLoss()
 
-    classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls, feat_dim=128)
+    if opt.use_projection_head:
+        # feature dimension is 128 when using the projection head
+        classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls, feat_dim=128)
+    else:
+        # feature dimension is inferred from encoder (e.g., 2048 for ResNet50)
+        classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
 
     if not opt.use_cache_features:
         ckpt = torch.load(opt.ckpt, map_location="cpu", weights_only=False)
@@ -311,12 +322,15 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
         with autocast("cuda", enabled=opt.mixed_precision):
-            # compute loss
+      
             if not opt.use_cache_features:
-                with torch.no_grad():
+                if opt.use_projection_head:
                     features = model(data)
+                else:
+                    features = model.encoder(data)
             else:
                 features = data
+
             output = classifier(features.detach())
             loss = criterion(output, labels)
 
@@ -381,10 +395,15 @@ def validate(val_loader, model, classifier, criterion, opt):
 
             # forward
             with autocast("cuda", enabled=opt.mixed_precision):
+
                 if not opt.use_cache_features:
-                    features = model(data)
+                    if opt.use_projection_head:
+                        features = model(data)
+                    else:
+                        features = model.encoder(data)
                 else:
                     features = data
+
                 output = classifier(features)
                 loss = criterion(output, labels)
 
@@ -432,7 +451,10 @@ def cache_outputs(val_loader, model, classifier, opt):
             data = data.float().cuda()
 
             if not opt.use_cache_features:
-                b_embeds = model(data)
+                if opt.use_projection_head:
+                    b_embeds = model(data)
+                else:
+                    b_embeds = model.encoder(data)
             else:
                 b_embeds = data
 
