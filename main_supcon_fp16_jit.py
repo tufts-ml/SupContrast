@@ -108,6 +108,11 @@ def parse_option():
         "--temp", type=float, default=0.07, help="temperature for loss function"
     )
 
+    # epsilon for EpsSupInfoNCE loss
+    parser.add_argument(
+        "--epsilon", type=float, default=0.25, help="epsilon for EpsSupInfoNCE loss"
+    )
+
     # other setting
     parser.add_argument("--cosine", action="store_true", help="using cosine annealing")
     parser.add_argument(
@@ -161,6 +166,9 @@ def parse_option():
         opt.trial,
     )
 
+    if opt.method == "EpsSupInfoNCE":
+        opt.model_name = "{}_eps_{}".format(opt.model_name, opt.epsilon)
+
     if opt.cosine:
         opt.model_name = "{}_cosine".format(opt.model_name)
 
@@ -202,7 +210,7 @@ def get_loss_funcs(opt):
     sincere_loss_func = (
         MultiviewSINCERELoss(temperature=opt.temp)
         if opt.method != "EpsSupInfoNCE"
-        else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
+        else MultiviewEpsSupInfoNCELoss(temperature=opt.temp, epsilon=opt.epsilon)
     )
     # original implementation does not set base_temperature, but setting here to make
     # hyperparameters comparable between implementations
