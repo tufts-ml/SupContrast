@@ -62,6 +62,8 @@ def parse_option():
         type=str,
         default="cifar10",
         choices=[
+            "pet",
+            "dtd",
             "cifar10",
             "cifar100",
             "imagenet100",
