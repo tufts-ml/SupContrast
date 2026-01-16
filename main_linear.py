@@ -14,7 +14,7 @@ from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import save_model, set_optimizer
-from networks.resnet_big import SupConResNet
+from networks.resnet_big import SupConResNet, LinearClassifier
 
 
 def parse_option():
@@ -62,6 +62,10 @@ def parse_option():
 
     parser.add_argument('--ckpt', type=str, default='',
                         help='path to pre-trained model')
+    parser.add_argument('--save_sub_dir', type=str, default='',
+                        help='create sub directory in save/SupCon/ for model and tensorboard')
+    parser.add_argument('--use_projection_head', action='store_true',
+                        help='use projection head for feature extraction')
 
     opt = parser.parse_args()
 
@@ -79,9 +83,9 @@ def parse_option():
         opt.lr_decay_epochs.append(int(it))
 
     # get the method used by the checkpoint by grabbing everything before first _ in folder name
-    ckpt_method = Path(opt.ckpt).parts[-2].partition("_")[0]
-    opt.model_name = '{}_lr_{}_bsz_{}_{}'.\
-        format(opt.dataset, opt.learning_rate, opt.batch_size, ckpt_method)
+    ckpt_method = Path(opt.ckpt).parent.name
+    opt.model_name = '{}_lr_{}_decay_{}_bsz_{}_{}'.format(
+        opt.dataset, opt.learning_rate, opt.weight_decay, opt.batch_size, ckpt_method)
 
     if opt.cosine:
         opt.model_name = '{}_cosine'.format(opt.model_name)
@@ -123,7 +127,8 @@ def parse_option():
     else:
         raise ValueError('dataset not supported: {}'.format(opt.dataset))
 
-    opt.model_path = './save/linear/{}_models'.format(opt.dataset)
+    opt.model_path = './save/linear/{}'.format(opt.save_sub_dir) if opt.save_sub_dir \
+        else './save/linear/{}_models'.format(opt.dataset)
     opt.save_folder = os.path.join(opt.model_path, opt.model_name)
     os.makedirs(opt.save_folder, exist_ok=True)
 
@@ -138,19 +143,19 @@ def set_model(opt):
     model = SupConResNet(name=opt.model)
     criterion = torch.nn.CrossEntropyLoss()
 
-    if type(model.head) is torch.nn.Linear:
-        opt.hidden_dim = model.head.out_features
+    if opt.use_projection_head:
+        # feature dimension is 128 when using the projection head
+        classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls, feat_dim=128)
     else:
-        # ignore warning from case where head is Linear instead of Sequential
-        opt.hidden_dim = model.head[-1].out_features  # type: ignore
-    classifier = torch.nn.Linear(opt.hidden_dim, opt.n_cls)
+        # feature dimension is inferred from encoder (e.g., 2048 for ResNet50)
+        classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
 
-    ckpt = torch.load(opt.ckpt, map_location='cpu')
+    ckpt = torch.load(opt.ckpt, map_location='cpu', weights_only=False)
     state_dict = ckpt['model']
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            model = torch.nn.DataParallel(model)
+            model.encoder = torch.nn.DataParallel(model.encoder)
         else:
             new_state_dict = {}
             for k, v in state_dict.items():
@@ -158,11 +163,12 @@ def set_model(opt):
                 new_state_dict[k] = v
             state_dict = new_state_dict
         model = model.cuda()
+        model.load_state_dict(state_dict)
+
+    if torch.cuda.is_available():
         classifier = classifier.cuda()
         criterion = criterion.cuda()
         cudnn.benchmark = True
-
-        model.load_state_dict(state_dict)
 
     return model, classifier, criterion
 
@@ -188,9 +194,11 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
-        # compute loss
-        with torch.no_grad():
+        if opt.use_projection_head:
             features = model(images)
+        else:
+            features = model.encoder(images)
+
         output = classifier(features.detach())
         loss = criterion(output, labels)
 
@@ -240,7 +248,12 @@ def validate(val_loader, model, classifier, criterion, opt):
             bsz = labels.shape[0]
 
             # forward
-            output = classifier(model(images))
+            if opt.use_projection_head:
+                features = model(images)
+            else:
+                features = model.encoder(images)
+
+            output = classifier(features)
             loss = criterion(output, labels)
 
             # update metric
@@ -273,20 +286,28 @@ def cache_outputs(val_loader, model, classifier, opt):
     model.eval()
     classifier.eval()
     # caches for outputs
-    embeds = torch.empty((0, opt.hidden_dim))
-    preds = torch.empty((0, opt.n_cls))
-    labels = torch.empty((0,))
+    embeds = []
+    preds = []
+    labels_list = []
     with torch.no_grad():
-        for b_images, b_labels in val_loader:
-            b_images = b_images.float().cuda()
-            b_labels = b_labels.cuda()
-            # forward
-            b_embeds = model(b_images)
+        for images, labels in val_loader:
+            images = images.float().cuda()
+
+            if opt.use_projection_head:
+                b_embeds = model(images)
+            else:
+                b_embeds = model.encoder(images)
+
             b_preds = classifier(b_embeds)
-            # cache
-            embeds = torch.vstack((embeds, b_embeds.cpu()))
-            preds = torch.vstack((preds, b_preds.cpu()))
-            labels = torch.hstack((labels, b_labels.cpu()))
+
+            embeds.append(b_embeds.cpu())
+            preds.append(b_preds.cpu())
+            labels_list.append(labels.cpu())
+
+    embeds = torch.cat(embeds)
+    preds = torch.cat(preds)
+    labels = torch.cat(labels_list)
+
     # save caches
     torch.save(embeds, os.path.join(opt.save_folder, "embeds.pth"))
     torch.save(preds, os.path.join(opt.save_folder, "preds.pth"))
@@ -295,7 +316,8 @@ def cache_outputs(val_loader, model, classifier, opt):
 
 
 def main():
-    best_acc = 0
+    time_start_main = time.time()
+
     opt = parse_option()
 
     # build data loader
@@ -306,6 +328,10 @@ def main():
 
     # build optimizer
     optimizer = set_optimizer(opt, classifier)
+
+    best_acc, val_acc = 0, 0
+    val_loss = 0
+    test_acc_last = 0
 
     # training routine
     for epoch in range(1, opt.epochs + 1):
@@ -321,20 +347,31 @@ def main():
 
         # eval for one epoch
         if val_loader is not None:
-            loss, val_acc = validate(val_loader, model, classifier, criterion, opt)
+            val_loss, val_acc = validate(val_loader, model, classifier, criterion, opt)
             if val_acc > best_acc:
                 best_acc = val_acc
         # print final accuracy for the test set evaluation run
-        elif epoch == opt.epochs:
-            validate(test_loader, model, classifier, criterion, opt)
+        if epoch == opt.epochs:
+            _, test_acc_last = validate(test_loader, model, classifier, criterion, opt)
 
-    print('best accuracy: {:.2f}'.format(best_acc))
+    print('-' * 25)
+    print('save folder        \t: {}'.format(opt.save_folder))
+    print('best val accuracy  \t: {:.5f}'.format(best_acc))
+    print('last val accuracy  \t: {:.5f}'.format(val_acc))
+    print('last val loss      \t: {:.5f}'.format(val_loss))
+    print('last test accuracy \t: {:.5f}'.format(test_acc_last))
+    print('-' * 25)
 
     # save the last model
     save_file = os.path.join(
         opt.save_folder, 'last.pth')
     save_model(classifier, optimizer, opt, opt.epochs, save_file)
+
+    # save features and predictions
     cache_outputs(test_loader, model, classifier, opt)
+
+    time_end_main = time.time()
+    print('\nTotal Time {:.2f} minute'.format((time_end_main - time_start_main) / 60))
 
 
 if __name__ == '__main__':
