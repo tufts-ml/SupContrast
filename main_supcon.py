@@ -14,9 +14,14 @@ from contrast_acc import contrastive_acc, test_contrastive_acc, test_contrastive
 from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, set_optimizer, save_model
+
 from networks.resnet_big import SupConResNet
+
 from losses import SupConLoss
 from revised_losses import MultiviewSINCERELoss, MultiviewEpsSupInfoNCELoss
+
+from torch.amp import autocast, GradScaler
+import torch.nn as nn
 
 
 def parse_option():
@@ -47,7 +52,7 @@ def parse_option():
 
     # model dataset
     parser.add_argument('--model', type=str, default='resnet50',
-                        choices=['resnet50', 'resnet200'])
+                        choices=['resnet18', 'resnet50', 'resnet200'])
     parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100', 'imagenet100', 'imagenet', 'cifar2',
                                  'aircraft', 'cars', 'path'],
@@ -72,6 +77,10 @@ def parse_option():
     parser.add_argument('--temp', type=float, default=0.07,
                         help='temperature for loss function')
 
+    # epsilon for EpsSupInfoNCE loss
+    parser.add_argument('--epsilon', type=float, default=0.25, 
+                        help='epsilon for EpsSupInfoNCE loss')
+
     # other setting
     parser.add_argument('--cosine', action='store_true',
                         help='using cosine annealing')
@@ -79,6 +88,10 @@ def parse_option():
                         help='warm-up for large batch training')
     parser.add_argument('--trial', type=str, default='0',
                         help='id for recording multiple runs')
+    parser.add_argument('--mixed_precision', action='store_true', 
+                        help='use torch.amp for mixed precision')
+    parser.add_argument('--save_sub_dir', type=str, default="", 
+                        help='create sub directory in save/SupCon/ for model and tensorboard')
 
     opt = parser.parse_args()
 
@@ -96,8 +109,9 @@ def parse_option():
             opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet/train/'
         else:
             opt.data_folder = './datasets/'
-    opt.model_path = './save/SupCon/{}_models'.format(opt.dataset)
-    opt.tb_path = './save/SupCon/{}_tensorboard'.format(opt.dataset)
+    
+    opt.model_path = f"./save/SupCon/{opt.save_sub_dir}{opt.dataset}_models"
+    opt.tb_path = f"./save/SupCon/{opt.save_sub_dir}{opt.dataset}_tensorboard"
 
     iterations = opt.lr_decay_epochs.split(',')
     opt.lr_decay_epochs = list([])
@@ -108,8 +122,14 @@ def parse_option():
         format(opt.method, opt.dataset, opt.model, opt.learning_rate,
                opt.weight_decay, opt.batch_size, opt.temp, opt.trial)
 
+    if opt.method == "EpsSupInfoNCE":
+        opt.model_name = "{}_eps_{}".format(opt.model_name, opt.epsilon)
+
     if opt.cosine:
         opt.model_name = '{}_cosine'.format(opt.model_name)
+
+    # mixed precision training
+    opt.scaler = GradScaler(device="cuda") if opt.mixed_precision else None
 
     # warm-up for large-batch training,
     if opt.batch_size > 256:
@@ -138,6 +158,22 @@ def parse_option():
     return opt
 
 
+def get_loss_funcs(opt):
+    sincere_loss_func = (
+        MultiviewSINCERELoss(temperature=opt.temp)
+        if opt.method != "EpsSupInfoNCE"
+        else MultiviewEpsSupInfoNCELoss(temperature=opt.temp, epsilon=opt.epsilon)
+    )
+    # original implementation does not set base_temperature, but setting here to make
+    # hyperparameters comparable between implementations
+    supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
+
+    return {
+        "sincere": sincere_loss_func,
+        "supcon": supcon_loss_func,
+    }
+
+
 def set_model(opt):
     model = SupConResNet(name=opt.model)
     if torch.cuda.is_available():
@@ -151,13 +187,10 @@ def set_model(opt):
     return model
 
 
-def train(train_loader, model, optimizer, epoch, opt, logger):
+def train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger):
     """one epoch training"""
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
-    # original implementation does not set base_temperature, but setting here to make
-    # hyperparameters comparable between implementations
-    supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
+    sincere_loss_func = loss_funcs["sincere"]
+    supcon_loss_func = loss_funcs["supcon"]
     model.train()
 
     av_batch_time = AverageMeter()
@@ -165,6 +198,7 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
     av_sincere = AverageMeter()
     av_supcon = AverageMeter()
     av_acc = AverageMeter()
+    av_grad = AverageMeter()
 
     end = time.time()
     # change reshuffle split of data across GPUs
@@ -186,31 +220,72 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
-        # forward
-        with torch.set_grad_enabled(True):
+        with autocast("cuda", enabled=opt.mixed_precision):
+            # forward
             flat_embeds = model(images)
-        # reshape from (2B, D) to (B, 2, D)
-        embeds = torch.cat(
-            [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
-        # compute losses
-        # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
-        # see MoCo v3 for full batch size parallelization with torch's all_gather
-        sincere_loss = sincere_loss_func(embeds, labels)
-        supcon_loss = supcon_loss_func(embeds, labels)
+            # reshape from (2B, D) to (B, 2, D)
+            embeds = torch.cat(
+                [
+                    aug.unsqueeze(1)
+                    for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)
+                ],
+                dim=1,
+            )
+            # compute losses
+            # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
+            # see MoCo v3 for full batch size parallelization with torch's all_gather
+            sincere_loss = sincere_loss_func(embeds, labels)
+            supcon_loss = supcon_loss_func(embeds, labels)
+
         # update averages
         av_sincere.update(sincere_loss.item(), bsz)
         av_supcon.update(supcon_loss.item(), bsz)
+
         # SGD
         # always zero in case grad accidentally calculated for non-train epoch
         optimizer.zero_grad()
-        if opt.method == 'SINCERE' or opt.method == 'EpsSupInfoNCE':
-            sincere_loss.backward()
-        elif opt.method == 'SupCon':
-            supcon_loss.backward()
+
+        if not opt.mixed_precision:
+            if opt.method == "SINCERE" or opt.method == "EpsSupInfoNCE":
+                sincere_loss.backward()
+            elif opt.method == "SupCon":
+                supcon_loss.backward()
+            else:
+                raise ValueError(
+                    "contrastive method not supported: {}".format(opt.method)
+                )
+
+            total_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(), 
+                float('inf')
+            ).item()    
+
+            optimizer.step()
+
         else:
-            raise ValueError('contrastive method not supported: {}'.
-                             format(opt.method))
-        optimizer.step()
+            if opt.method == "SINCERE" or opt.method == "EpsSupInfoNCE":
+                opt.scaler.scale(sincere_loss).backward()
+            elif opt.method == "SupCon":
+                opt.scaler.scale(supcon_loss).backward()
+            else:
+                raise ValueError(
+                    "contrastive method not supported: {}".format(opt.method)
+                )
+
+            opt.scaler.unscale_(optimizer)
+            total_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(), 
+                float('inf')
+            ).item()
+
+            opt.scaler.step(optimizer)
+            opt.scaler.update()
+        
+        if total_norm is not None and math.isfinite(total_norm):
+            av_grad.update(total_norm, 1)
+        else:
+            print("\n**Gradient NaN**\n")
+
         # compute accuracy
         with torch.no_grad():
             acc = contrastive_acc(embeds, labels)
@@ -222,11 +297,17 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
 
         # print info
         if (idx + 1) % opt.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                    epoch, idx + 1, len(train_loader), batch_time=av_batch_time,
-                    data_time=av_data_time))
+            print(
+                "Epoch: [{0}][{1}/{2}]\t"
+                "BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                "DT {data_time.val:.3f} ({data_time.avg:.3f})\t".format(
+                    epoch,
+                    idx + 1,
+                    len(train_loader),
+                    batch_time=av_batch_time,
+                    data_time=av_data_time,
+                )
+            )
             sys.stdout.flush()
 
     # tensorboard logger
@@ -235,21 +316,19 @@ def train(train_loader, model, optimizer, epoch, opt, logger):
         logger.add_scalar(f"{log_folder}SINCERE", av_sincere.avg, epoch)
         logger.add_scalar(f"{log_folder}SupCon", av_supcon.avg, epoch)
         logger.add_scalar(f"{log_folder}Accuracy", av_acc.avg, epoch)
+        logger.add_scalar(f"{log_folder}Gradient Norm", av_grad.avg, epoch)
     # log values independent of forward passes
     logger.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
     return
 
 
-def valid(train_loader, valid_loader, model, epoch, opt, logger):
+def valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger):
     """validation"""
     # loggger is given if valid_loader is validation set, otherwise is test set
     val_is_test = logger is None
 
-    sincere_loss_func = MultiviewSINCERELoss(temperature=opt.temp) \
-        if opt.method != 'EpsSupInfoNCE' else MultiviewEpsSupInfoNCELoss(temperature=opt.temp)
-    # original implementation does not set base_temperature, but setting here to make
-    # hyperparameters comparable between implementations
-    supcon_loss_func = SupConLoss(temperature=opt.temp, base_temperature=opt.temp)
+    sincere_loss_func = loss_funcs["sincere"]
+    supcon_loss_func = loss_funcs["supcon"]
 
     # caches for data
     train_embeds = torch.empty((0, 128))
@@ -287,12 +366,19 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                     labels = labels.to(opt.device, non_blocking=True)
             bsz = labels.shape[0]
 
-            # forward
-            with torch.no_grad():
-                flat_embeds = model(images)
-            # reshape from (2B, D) to (B, 2, D)
-            embeds = torch.cat(
-                [aug.unsqueeze(1) for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)], dim=1)
+            with autocast("cuda", enabled=opt.mixed_precision):
+                # forward
+                with torch.no_grad():
+                    flat_embeds = model(images)
+                # reshape from (2B, D) to (B, 2, D)
+                embeds = torch.cat(
+                    [
+                        aug.unsqueeze(1)
+                        for aug in torch.split(flat_embeds, [bsz, bsz], dim=0)
+                    ],
+                    dim=1,
+                )
+
             # cache train outputs
             if is_train:
                 train_embeds = torch.vstack((train_embeds, embeds[:, 0].cpu()))
@@ -303,17 +389,32 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
                     test_embeds = torch.vstack((test_embeds, embeds[:, 0].cpu()))
                     test_labels = torch.hstack((test_labels, labels.cpu()))
                 # compute validation accuracy
-                av_acc_top_1.update(test_contrastive_acc(
-                    train_embeds.cuda(), embeds[:, 0].cuda(),
-                    train_labels.cuda(), labels.cuda()).item(), bsz)
-                av_acc_top_5.update(test_contrastive_acc_knn(
-                    train_embeds.cuda(), embeds[:, 0].cuda(),
-                    train_labels.cuda(), labels.cuda(), 5).item(), bsz)
+                av_acc_top_1.update(
+                    test_contrastive_acc(
+                        train_embeds.cuda(),
+                        embeds[:, 0].cuda(),
+                        train_labels.cuda(),
+                        labels.cuda(),
+                    ).item(),
+                    bsz,
+                )
+                av_acc_top_5.update(
+                    test_contrastive_acc_knn(
+                        train_embeds.cuda(),
+                        embeds[:, 0].cuda(),
+                        train_labels.cuda(),
+                        labels.cuda(),
+                        5,
+                    ).item(),
+                    bsz,
+                )
             # compute losses (note there's no class balancing sampler for test)
             # loss is averaged across GPU-specific batches if using multiple GPUs, as in SupCon
             # see MoCo v3 for full batch size parallelization with torch's all_gather
-            sincere_loss = sincere_loss_func(embeds, labels)
-            supcon_loss = supcon_loss_func(embeds, labels)
+            with autocast("cuda", enabled=opt.mixed_precision):
+                sincere_loss = sincere_loss_func(embeds, labels)
+                supcon_loss = supcon_loss_func(embeds, labels)
+
             # update averages
             av_sincere.update(sincere_loss.item(), bsz)
             av_supcon.update(supcon_loss.item(), bsz)
@@ -324,11 +425,17 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
 
             # print info
             if (idx + 1) % opt.print_freq == 0:
-                print('Epoch: [{0}][{1}/{2}]\t'
-                      'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'.format(
-                        epoch, idx + 1, len(loader), batch_time=av_batch_time,
-                        data_time=av_data_time))
+                print(
+                    "Epoch: [{0}][{1}/{2}]\t"
+                    "BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                    "DT {data_time.val:.3f} ({data_time.avg:.3f})\t".format(
+                        epoch,
+                        idx + 1,
+                        len(loader),
+                        batch_time=av_batch_time,
+                        data_time=av_data_time,
+                    )
+                )
                 sys.stdout.flush()
     if "device" not in opt or opt.device == 0 and not is_train:
         # tensorboard logger
@@ -351,12 +458,15 @@ def valid(train_loader, valid_loader, model, epoch, opt, logger):
             torch.save(test_labels, os.path.join(opt.save_folder, "test_labels.pth"))
 
 
-def test(model, opt):
+def test(loss_funcs, model, opt):
     train_loader, _, test_loader = set_loader(opt, contrast_trans=True, for_test=True)
-    valid(train_loader, test_loader, model, 0, opt, None)
+    valid(loss_funcs, train_loader, test_loader, model, 0, opt, None)
 
 
 def main(opt):
+    # get loss functions
+    loss_funcs = get_loss_funcs(opt)
+
     # build data loader
     train_loader, valid_loader, _ = set_loader(opt, contrast_trans=True)
 
@@ -376,26 +486,30 @@ def main(opt):
 
         # train for one epoch
         time1 = time.time()
-        train(train_loader, model, optimizer, epoch, opt, logger)
+        train(loss_funcs, train_loader, model, optimizer, epoch, opt, logger)
         time2 = time.time()
+        print("epoch {}, total time {:.2f}".format(epoch, time2 - time1))
+
         # use valid_loader if present
-        if epoch % 5 == 0 and valid_loader is not None:
-            valid(train_loader, valid_loader, model, epoch, opt, logger)
-        print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
+        if epoch % opt.save_freq == 0 and valid_loader is not None:
+            time1 = time.time()
+            valid(loss_funcs, train_loader, valid_loader, model, epoch, opt, logger)
+            time2 = time.time()
+            print("valid {}, total time {:.2f}".format(epoch, time2 - time1))
 
         # checkpoint
         if epoch % opt.save_freq == 0:
             save_file = os.path.join(
-                opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
+                opt.save_folder, "ckpt_epoch_{epoch}.pth".format(epoch=epoch)
+            )
             save_model(model, optimizer, opt, epoch, save_file)
 
     # save the last model
-    save_file = os.path.join(
-        opt.save_folder, 'last.pth')
+    save_file = os.path.join(opt.save_folder, 'last.pth')
     save_model(model, optimizer, opt, opt.epochs, save_file)
 
     # print test statistics
-    test(model, opt)
+    test(loss_funcs, model, opt)
 
 
 def launch_parallel(rank, world_size):
