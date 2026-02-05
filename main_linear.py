@@ -9,12 +9,27 @@ from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
+from torch.utils.data import Dataset, DataLoader, Subset
+from sklearn.model_selection import train_test_split
 
 from main_ce import set_loader
 from util import AverageMeter
 from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import save_model, set_optimizer
 from networks.resnet_big import SupConResNet, LinearClassifier
+
+
+class CachedDataset(Dataset):
+    """Dataset for loading pre-computed features."""
+    def __init__(self, features, labels):
+        self.features = features
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, idx):
+        return self.features[idx], self.labels[idx]
 
 
 def parse_option():
@@ -62,6 +77,8 @@ def parse_option():
 
     parser.add_argument('--ckpt', type=str, default='',
                         help='path to pre-trained model')
+    parser.add_argument('--use_cache_features', action='store_true',
+                        help='load pre-computed features from cache')
     parser.add_argument('--save_sub_dir', type=str, default='',
                         help='create sub directory in save/SupCon/ for model and tensorboard')
     parser.add_argument('--use_projection_head', action='store_true',
@@ -150,20 +167,22 @@ def set_model(opt):
         # feature dimension is inferred from encoder (e.g., 2048 for ResNet50)
         classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
 
-    ckpt = torch.load(opt.ckpt, map_location='cpu', weights_only=False)
-    state_dict = ckpt['model']
+    # only load encoder weights if NOT using cached features
+    if not opt.use_cache_features:
+        ckpt = torch.load(opt.ckpt, map_location='cpu', weights_only=False)
+        state_dict = ckpt['model']
 
-    if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            model.encoder = torch.nn.DataParallel(model.encoder)
-        else:
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                k = k.replace("module.", "")
-                new_state_dict[k] = v
-            state_dict = new_state_dict
-        model = model.cuda()
-        model.load_state_dict(state_dict)
+        if torch.cuda.is_available():
+            if torch.cuda.device_count() > 1:
+                model.encoder = torch.nn.DataParallel(model.encoder)
+            else:
+                new_state_dict = {}
+                for k, v in state_dict.items():
+                    k = k.replace("module.", "")
+                    new_state_dict[k] = v
+                state_dict = new_state_dict
+            model = model.cuda()
+            model.load_state_dict(state_dict)
 
     if torch.cuda.is_available():
         classifier = classifier.cuda()
@@ -171,6 +190,62 @@ def set_model(opt):
         cudnn.benchmark = True
 
     return model, classifier, criterion
+
+
+def set_cached_loader(opt):
+    """
+    Creates and returns dataloaders for cached features, handling validation split.
+    """
+    cache_path = Path(opt.ckpt).parent / '{}_features'.format(opt.dataset)
+    train_file = cache_path / 'train_features.pt'
+    test_file = cache_path / 'test_features.pt'
+
+    if not train_file.is_file() or not test_file.is_file():
+        print('Cached features not found at {}'.format(cache_path))
+        print('Please run precompute_features.py first.')
+        sys.exit(1)
+
+    train_data = torch.load(train_file)
+    test_data = torch.load(test_file)
+
+    train_dataset = CachedDataset(train_data['features'], train_data['labels'])
+    test_dataset = CachedDataset(test_data['features'], test_data['labels'])
+
+    val_loader = None
+    if opt.valid_split > 0:
+        train_indices, val_indices = train_test_split(
+            list(range(len(train_dataset))),
+            test_size=opt.valid_split,
+            stratify=train_dataset.labels,
+            random_state=42,
+        )
+        val_dataset = Subset(train_dataset, val_indices)
+        train_dataset = Subset(train_dataset, train_indices)
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=opt.batch_size,
+            shuffle=False,
+            num_workers=opt.num_workers,
+            pin_memory=True,
+        )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=opt.batch_size,
+        shuffle=True,
+        num_workers=opt.num_workers,
+        pin_memory=True,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=opt.batch_size,
+        shuffle=False,
+        num_workers=opt.num_workers,
+        pin_memory=True,
+    )
+
+    return train_loader, val_loader, test_loader
 
 
 def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
@@ -194,10 +269,13 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
-        if opt.use_projection_head:
-            features = model(images)
+        if not opt.use_cache_features:
+            if opt.use_projection_head:
+                features = model(images)
+            else:
+                features = model.encoder(images)
         else:
-            features = model.encoder(images)
+            features = images
 
         output = classifier(features.detach())
         loss = criterion(output, labels)
@@ -248,10 +326,13 @@ def validate(val_loader, model, classifier, criterion, opt):
             bsz = labels.shape[0]
 
             # forward
-            if opt.use_projection_head:
-                features = model(images)
+            if not opt.use_cache_features:
+                if opt.use_projection_head:
+                    features = model(images)
+                else:
+                    features = model.encoder(images)
             else:
-                features = model.encoder(images)
+                features = images
 
             output = classifier(features)
             loss = criterion(output, labels)
@@ -293,10 +374,13 @@ def cache_outputs(val_loader, model, classifier, opt):
         for images, labels in val_loader:
             images = images.float().cuda()
 
-            if opt.use_projection_head:
-                b_embeds = model(images)
+            if not opt.use_cache_features:
+                if opt.use_projection_head:
+                    b_embeds = model(images)
+                else:
+                    b_embeds = model.encoder(images)
             else:
-                b_embeds = model.encoder(images)
+                b_embeds = images
 
             b_preds = classifier(b_embeds)
 
@@ -321,7 +405,10 @@ def main():
     opt = parse_option()
 
     # build data loader
-    train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
+    if opt.use_cache_features:
+        train_loader, val_loader, test_loader = set_cached_loader(opt)
+    else:
+        train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
