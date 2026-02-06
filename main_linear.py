@@ -299,7 +299,8 @@ def main():
     opt = parse_option()
 
     # build data loader
-    train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
+    train_loader, val_loader, _ = set_loader(opt, contrast_trans=False)
+    _, _, test_loader = set_loader(opt, contrast_trans=False, for_test=True)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
