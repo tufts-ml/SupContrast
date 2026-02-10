@@ -335,7 +335,8 @@ def set_loader(opt, contrast_trans=False, for_test=False, for_cache=False):
             test_dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_size=opt.batch_size,
             sampler=DistributedSampler(test_dataset) if "device" in opt else None)
-    elif not for_test:
+    elif not for_test and not for_cache:
+        # standard training (no cache, no test) - uses class-balanced sampler
         train_loader = DataLoader(
             train_dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_sampler=sampler.my_sampler(train_dataset, opt.batch_size))
@@ -343,9 +344,12 @@ def set_loader(opt, contrast_trans=False, for_test=False, for_cache=False):
             test_dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_sampler=sampler.my_sampler(test_dataset, opt.batch_size))
     else:
+        # for_test=True OR for_cache=True - deterministic order, no class-balanced sampler
+        # for_test: standard sequential test evaluation
+        # for_cache: feature extraction for caching (preserves dataset order to prevent leakage)
         train_loader = DataLoader(
             train_dataset, num_workers=opt.num_workers, pin_memory=True,
-            batch_size=opt.batch_size)
+            batch_size=opt.batch_size, shuffle=False)
         test_loader = DataLoader(
             test_dataset, num_workers=opt.num_workers, pin_memory=True,
             batch_size=opt.batch_size)
