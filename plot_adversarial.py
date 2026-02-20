@@ -62,9 +62,6 @@ if __name__ == "__main__":
         diff_sigs = np.array(
             [result.confidence_interval.low > 0 or result.confidence_interval.high < 0
              for result in diff_results])
-        # make array include insignificance gaps
-        last_true_ind = len(diff_sigs) - 1 - diff_sigs[::-1].argmax()
-        diff_sigs[diff_sigs.argmax():last_true_ind] = True
 
         # init subplot
         ax = plt.subplot(1, 4, i + 1)
