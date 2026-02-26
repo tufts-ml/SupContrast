@@ -408,8 +408,7 @@ def main():
     if opt.use_cache_features:
         train_loader, val_loader, test_loader = set_cached_loader(opt)
     else:
-        train_loader, val_loader, _ = set_loader(opt, contrast_trans=False)
-        _, _, test_loader = set_loader(opt, contrast_trans=False, for_test=True)
+        train_loader, val_loader, test_loader = set_loader(opt, contrast_trans=False)
 
     # build model and criterion
     model, classifier, criterion = set_model(opt)
