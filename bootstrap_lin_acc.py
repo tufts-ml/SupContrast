@@ -57,39 +57,76 @@ def bootstrap_dif(b_scores_1, b_scores_2):
 if __name__ == "__main__":
     from functools import partial
     from pathlib import Path
-
     from util import accuracy
+    import itertools
 
-    b_scores_cache = []
-    # out_folders should have pairs of models to compare
-    out_folders = [Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar10_models/cifar10_lr_5.0_bsz_512_old/"),
-                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar100_models/cifar100_lr_5.0_bsz_512_old/"),
-                   Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/cifar2_models/cifar2_lr_5.0_bsz_512_old/"),
-                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_new/"),
-                   Path("save/linear/imagenet100_models/imagenet100_lr_5.0_bsz_512_old/")]
-    # print bootstrapped accuracy CIs
-    for out_folder in out_folders:
-        if "cifar2" in str(out_folder):
-            metric = partial(accuracy, topk=(1,))
-        else:
-            metric = partial(accuracy, topk=(1, 5))
-        y_pred = torch.load(out_folder / "preds.pth")
-        y_true = torch.load(out_folder / "labels.pth")
-        print(out_folder)
-        print("Means, 95% CI Low, 95% CI High")
-        metric_mean, ci_low, ci_high, b_scores = bootstrap_metric(y_pred, y_true, metric)
-        b_scores_cache.append(b_scores)
-        print(metric_mean, ci_low, ci_high)
-        print()
-    # print accuracy difference for each pair of models
-    for i in range(len(out_folders) // 2):
-        i1 = 2 * i
-        i2 = 2 * i + 1
-        print("Accuracy Difference 95% CI for:")
-        print(out_folders[i1])
-        print(out_folders[i2])
-        print(bootstrap_dif(b_scores_cache[i1], b_scores_cache[i2]))
-        print()
+    out_folders = {
+        "pet": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/pet/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/pet_lr_16.459140251421243_decay_0.0_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/pet/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/pet_lr_49.99999999999999_decay_0.0_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/pet/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/pet_lr_49.99999999999999_decay_1e-05_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+        "dtd": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/dtd/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/dtd_lr_49.99999999999999_decay_5e-05_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/dtd/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/dtd_lr_1.023292992280754_decay_1e-05_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/dtd/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/dtd_lr_1.783534149330136_decay_0.0001_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+        "aircraft": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/aircraft/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/aircraft_lr_49.99999999999999_decay_0.0_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/aircraft/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/aircraft_lr_49.99999999999999_decay_0.0_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/aircraft/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/aircraft_lr_28.687227341990756_decay_0.0_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+        "food101": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/food101/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/food101_lr_5.418065956319098_decay_0.0_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/food101/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/food101_lr_5.418065956319098_decay_0.0_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/food101/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/food101_lr_5.418065956319098_decay_0.0_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+        "flowers": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/flowers/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/flowers_lr_28.687227341990756_decay_0.0_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/flowers/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/flowers_lr_28.687227341990756_decay_1e-05_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/flowers/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/flowers_lr_49.99999999999999_decay_5e-05_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+        "cars": {
+            "SupCon         ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/cars/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/cars_lr_28.687227341990756_decay_0.0_bsz_128_SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46_cosine_warm/",
+            "SINCERE        ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/cars/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/cars_lr_49.99999999999999_decay_0.0_bsz_128_SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28_cosine_warm/",
+            "EpsSupInfoNCE  ": "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/linear/exp-final-imagenet100/transfer-final/cars/size-224/best_val_separation_t1_wo_projection_head/100_epochs_final/cars_lr_49.99999999999999_decay_0.0_bsz_128_EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00_cosine_warm/",
+        },
+    }
+
+    for dataset_name, models_dict in out_folders.items():
+
+        print("\n")
+        print(dataset_name)
+        print("\n")
+        
+        dataset_b_scores = {}
+        metric = partial(accuracy, topk=(1,))
+
+        for model_name, model_path in models_dict.items():
+
+            model_path = Path(model_path)
+            y_pred = torch.load(model_path / "preds.pth", weights_only=False)
+            y_true = torch.load(model_path / "labels.pth", weights_only=False)
+            
+            metric_mean, _, _, b_scores = bootstrap_metric(y_pred, y_true, metric)
+            dataset_b_scores[model_name] = b_scores
+            
+            print(f"\t{model_name} \t : {metric_mean.item()}")
+
+        model_names = list(dataset_b_scores.keys())
+
+        print("\n")
+        for name1, name2 in itertools.combinations(model_names, 2):
+            scores1 = dataset_b_scores[name1]
+            scores2 = dataset_b_scores[name2]
+            
+            is_significant = bootstrap_dif(scores1, scores2)
+            
+            if is_significant.item():
+                status = "SIGNIFICANT"
+            else:
+                status = "Not Significant"
+                
+            print(f"\t{name1} vs {name2} \t : {status}")
+        
+        print("\n")
