@@ -6,7 +6,7 @@ import torch
 
 def pair_sim_hist(pred_dict, class_labels, out_folder):
     fig_folder = Path("figures/hist") / out_folder.name
-    fig_folder.mkdir(exist_ok=True)
+    fig_folder.mkdir(parents=True, exist_ok=True)
     n_labels = len(torch.unique(pred_dict["target_label"]))
     for label in range(n_labels):
         target_sim = pred_dict["target_sim"][pred_dict["target_label"] == label]
@@ -29,7 +29,7 @@ def pair_sim_hist(pred_dict, class_labels, out_folder):
 
 def pair_sim_hist_all(pred_dict, out_folder):
     fig_folder = Path("figures/hist") / out_folder.name
-    fig_folder.mkdir(exist_ok=True)
+    fig_folder.mkdir(parents=True, exist_ok=True)
     # plot histogram and save
     fig, ax = plt.subplots()
     sns_ax = sns.histplot(
@@ -37,7 +37,14 @@ def pair_sim_hist_all(pred_dict, out_folder):
         hue=["Target"] * len(pred_dict["target_sim"]) + ["Noise"] * len(pred_dict["noise_sim"]),
         ax=ax, binrange=[-.1, 1], bins=100, element="step", stat="proportion",
         common_bins=True, common_norm=False)
+    
+    target_median = torch.median(pred_dict["target_sim"]).item()
+    noise_median = torch.median(pred_dict["noise_sim"]).item()
+    ax.axvline(target_median, color="C0", linestyle=":")
+    ax.axvline(noise_median, color="C1", linestyle=":")
+
     sns.move_legend(sns_ax, "upper left")
+    
     ax.set_ylim(0, 1)
     ax.set_xlabel("Cosine Similarity")
     ax.set_ylabel("Test Set Proportion")
@@ -48,9 +55,9 @@ def pair_sim_hist_all(pred_dict, out_folder):
 
 def pair_sim_curves(pred_dict, class_labels, out_folder):
     roc_fig_folder = Path("figures/roc") / out_folder.name
-    roc_fig_folder.mkdir(exist_ok=True)
+    roc_fig_folder.mkdir(parents=True, exist_ok=True)
     pr_fig_folder = Path("figures/pr") / out_folder.name
-    pr_fig_folder.mkdir(exist_ok=True)
+    pr_fig_folder.mkdir(parents=True, exist_ok=True)
     n_labels = len(torch.unique(pred_dict["target_label"]))
     for label in range(n_labels):
         target_sim = pred_dict["target_sim"][pred_dict["target_label"] == label]
@@ -139,10 +146,10 @@ def pred_dict(train_embeds, train_labels, test_embeds, test_labels):
 
 
 def make_test_pred_dict(out_folder):
-    train_embeds = torch.load(out_folder / "train_embeds.pth")
-    train_labels = torch.load(out_folder / "train_labels.pth")
-    test_embeds = torch.load(out_folder / "test_embeds.pth")
-    test_labels = torch.load(out_folder / "test_labels.pth")
+    train_embeds = torch.load(out_folder / "train_embeds.pth", weights_only=False)
+    train_labels = torch.load(out_folder / "train_labels.pth", weights_only=False)
+    test_embeds = torch.load(out_folder / "test_embeds.pth", weights_only=False)
+    test_labels = torch.load(out_folder / "test_labels.pth", weights_only=False)
     test_pred_dict = pred_dict(train_embeds, train_labels, test_embeds, test_labels)
     torch.save(test_pred_dict, out_folder / "test_pred_dict.pth")
 
@@ -150,18 +157,11 @@ def make_test_pred_dict(out_folder):
 if __name__ == "__main__":
     from pathlib import Path
 
-    out_folders = [Path("save/SupCon/cifar10_models/SINCERE_cifar10_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_20-22_04_43/"),  # noqa: E501
-                   Path("save/SupCon/cifar10_models/SupCon_cifar10_resnet50_lr_0.35_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_19-15_04_54/"),  # noqa: E501
-                   Path("save/SupCon/cifar10_models/EpsSupInfoNCE_cifar10_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_28_30/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/SINCERE_cifar2_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_40/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/SupCon_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_42/"),  # noqa: E501
-                   Path("save/SupCon/cifar2_models/EpsSupInfoNCE_cifar2_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_23/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/SINCERE_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_28/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/SupCon_cifar100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_01_22-09_32_31/"),  # noqa: E501
-                   Path("save/SupCon/cifar100_models/EpsSupInfoNCE_cifar100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_21-12_52_07/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.65_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_18/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.05_trial_0_cosine_warm_2024_01_22-09_32_20/"),  # noqa: E501
-                   Path("save/SupCon/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.5_decay_0.0001_bsz_512_temp_0.1_trial_0_cosine_warm_2024_03_22-09_31_46/"),]  # noqa: E501
+    out_folders = [
+        Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SINCERE_cifar10_resnet50_lr_0.1_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-16_57_55/"),  # noqa: E501
+        Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SupCon_cifar10_resnet50_lr_0.19036539387158782_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-23_12_35/"),  # noqa: E501
+    ]
+
     # calculate embedding statistics
     for out_folder in out_folders:
         print(out_folder)
@@ -170,7 +170,8 @@ if __name__ == "__main__":
             print(f"Folder not found, skipping {out_folder}")
             continue
         if not (out_folder / "test_pred_dict.pth").exists():
-            make_test_pred_dict()
+            make_test_pred_dict(out_folder)
+            test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
         else:
             test_pred_dict = torch.load(out_folder / "test_pred_dict.pth")
         # print median target and noise similarities
@@ -188,7 +189,7 @@ if __name__ == "__main__":
             class_labels = ('Cat', 'Dog')
         # paired similarity histogram for all classes
         pair_sim_hist_all(test_pred_dict, out_folder)
-        # paired similarity histogram for individual classes
+        # paired simil arity histogram for individual classes
         pair_sim_hist(test_pred_dict, class_labels, out_folder)
         # paired similarity ROC and PR curves
         pair_sim_curves(test_pred_dict, class_labels, out_folder)
