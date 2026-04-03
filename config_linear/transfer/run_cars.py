@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 
-launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_linear_with_cache.py"
+launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_linear.py"
 
 
 checkpoint_dict = {
