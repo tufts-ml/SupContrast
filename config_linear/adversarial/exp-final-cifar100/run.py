@@ -6,16 +6,16 @@ from pathlib import Path
 import numpy as np
 
 
-launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_linear.py"
+launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_linear.py"
 
 
 checkpoint_dict = {
     "best_val_separation_t1": [
         Path(
-            "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/SINCERE_cifar100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_23-01_54_13/last.pth",
+            "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/SINCERE_cifar100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_23-01_54_13/last.pth",
         ),
         Path(
-            "/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/SupCon_cifar100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_22-23_19_21/last.pth",
+            "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/SupCon_cifar100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_22-23_19_21/last.pth",
         ),
     ],
 }
@@ -69,7 +69,7 @@ slurm_dict = {
     "-t": "0-06:00:0",
     "--gres": "gpu:l40:1",
     "-c": NUM_WORKER,
-    "-o": f"/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/linear/{SUB_DIR}%A_%a.out",
+    "-o": f"/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/linear/{SUB_DIR}%A_%a.out",
 }
 
 

@@ -158,8 +158,8 @@ if __name__ == "__main__":
     from pathlib import Path
 
     out_folders = [
-        Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SINCERE_cifar10_resnet50_lr_0.1_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-16_57_55/"),  # noqa: E501
-        Path("/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SupCon_cifar10_resnet50_lr_0.19036539387158782_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-23_12_35/"),  # noqa: E501
+        Path("/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SINCERE_cifar10_resnet50_lr_0.1_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-16_57_55/"),  # noqa: E501
+        Path("/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar10/cifar10_models/SupCon_cifar10_resnet50_lr_0.19036539387158782_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_21-23_12_35/"),  # noqa: E501
     ]
 
     # calculate embedding statistics

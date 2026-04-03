@@ -70,7 +70,7 @@ def parse_option():
     opt = parser.parse_args()
 
     opt.data_folder = (
-        "/cluster/tufts/hugheslab/datasets/ImageNet100/train/"
+        "/cluster/tufts/AAAAAAlab/datasets/ImageNet100/train/"
         if opt.dataset == "imagenet100"
         else "./datasets/"
     )

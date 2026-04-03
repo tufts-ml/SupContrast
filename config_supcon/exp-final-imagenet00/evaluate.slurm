@@ -6,10 +6,10 @@
 #SBATCH --mem 8G
 #SBATCH -t 0-23:00
 #SBATCH --job-name="evaluate final resnet50 imagenet100"
-#SBATCH -o /cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/notimportant/%j.out
-#SBATCH -e /cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/notimportant/%j.err
+#SBATCH -o /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.out
+#SBATCH -e /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.err
 
-PARENT_DIR="/cluster/tufts/hugheslab/mlao01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/"
+PARENT_DIR="/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/"
 
 DATASET="imagenet100"
 MODEL_ARCH="resnet50"

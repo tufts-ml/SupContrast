@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     opt.save_folder = model_loc.parent
     if opt.dataset == "imagenet100":
-        opt.data_folder = '/cluster/tufts/hugheslab/datasets/ImageNet100/train/'
+        opt.data_folder = '/cluster/tufts/AAAAAAlab/datasets/ImageNet100/train/'
     print(opt)
 
     train_loader, _, test_loader = set_loader(opt, contrast_trans=True, for_test=True)

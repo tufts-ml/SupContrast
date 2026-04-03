@@ -148,10 +148,10 @@ if __name__ == "__main__":
             # (10k + 1 to 20k are corrupted 2, etc.)
             if "cifar10_" in model_folder.name:
                 opt.dataset = "cifar10"
-                opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-10-C"
+                opt.data_folder = "/cluster/tufts/AAAAAAlab/datasets/CIFAR-10-C"
             if "cifar100_" in model_folder.name:
                 opt.dataset = "cifar100"
-                opt.data_folder = "/cluster/tufts/hugheslab/datasets/CIFAR-100-C"
+                opt.data_folder = "/cluster/tufts/AAAAAAlab/datasets/CIFAR-100-C"
             # loop over the distortions
             print(model_folder)
             for distortion_name in distortions:

@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 
 
-launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/hugheslab/mlao01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
+launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
 
 SUB_DIR = "exp-final-cifar2/"
 NUM_WORKDERS = 8
@@ -34,11 +34,11 @@ search_dict = {
 
 slurm_dict = {
     "-J": f"exp-final-cifar2",
-    "-p": "hugheslab",
+    "-p": "AAAAAAlab",
     "-t": "12:00:00",
     "--gres": "gpu:rtx_6000:1",
     "-c": NUM_WORKDERS,
-    "-o": f"/cluster/tufts/hugheslab/mlao01/Git/SupContrast/slurm_out/{SUB_DIR}%A_%a.out",
+    "-o": f"/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/{SUB_DIR}%A_%a.out",
 }
 
 
