@@ -45,10 +45,26 @@ pipenv run python main_supcon.py --batch_size 512 \
   --method SINCERE
 ```
 
-### Cross-Entropy Linear Finetuning Stage:
+## Linear Evaluation Modes
 
+**With Projection Head** (128-dim, for adversarial attacks):
 ```
-pipenv run python main_linear.py --batch_size 512 \
-  --learning_rate 5 \
-  --ckpt /path/to/model.pth
+pipenv run python main_linear.py --batch_size 512 --learning_rate 5 \
+  --weight_decay 1e-4 --use_projection_head --ckpt /path/to/model.pth
 ```
+
+**Without Projection Head** (2048-dim, for transfer experiments):
+```
+# Pre-compute features
+pipenv run python main_linear_cache_features.py --dataset pet --size 224 --ckpt /path/to/model.pth
+
+# Train on cached features
+pipenv run python main_linear.py --batch_size 512 --learning_rate 5 --weight_decay 1e-4 \
+  --dataset pet --size 224 --use_cache_features --ckpt /path/to/model.pth
+```
+
+## Model Selection & Adversarial Attack
+
+See `config_supcon/<experiment>/evaluate.slurm` for model selection (kNN accuracy, separation metrics).
+
+See `config_linear/adversarial/<experiment>/` for adversarial attacks (embedding space perturbation).
