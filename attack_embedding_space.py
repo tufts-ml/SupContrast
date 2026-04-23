@@ -76,7 +76,7 @@ def parse_option():
         raise ValueError("The number of loss_names, encoder_paths, and head_paths must match.")
 
     opt.data_folder = (
-        "/cluster/tufts/AAAAAAlab/datasets/ImageNet100/train/"
+        "/cluster/s/AAAAAAlab/datasets/ImageNet100/train/"
         if opt.dataset == "imagenet100"
         else "./datasets/"
     )

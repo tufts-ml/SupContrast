@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 
 
-launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
+launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/s/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_supcon.py"
 
 SUB_DIR = "exp-final-imagenet100/"
 NUM_WORKDERS = 8
@@ -39,7 +39,7 @@ slurm_dict = {
     "-t": "2-00:00:00",
     "--gres": "gpu:a100:1",
     "-c": NUM_WORKDERS,
-    "-o": f"/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/{SUB_DIR}%A_%a.out",
+    "-o": f"/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/{SUB_DIR}%A_%a.out",
 }
 
 

@@ -6,10 +6,10 @@
 #SBATCH --mem 8G
 #SBATCH -t 0-23:00
 #SBATCH --job-name="evaluate final resnet50 cifar100"
-#SBATCH -o /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.out
-#SBATCH -e /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.err
+#SBATCH -o /cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.out
+#SBATCH -e /cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/notimportant/%j.err
 
-PARENT_DIR="/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/"
+PARENT_DIR="/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-cifar100/cifar100_models/"
 
 DATASET="cifar100"
 MODEL_ARCH="resnet50"

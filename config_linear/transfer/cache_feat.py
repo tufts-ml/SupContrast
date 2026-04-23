@@ -1,7 +1,7 @@
 import itertools
 import subprocess
 
-launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_linear_cache_features.py"
+launch_cmd = "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True cd /cluster/s/AAAAAAlab/mDDD01/Git/SupContrast; nvidia-smi; pipenv run python main_linear_cache_features.py"
 
 
 search_dict = {
@@ -11,9 +11,9 @@ search_dict = {
     "--dataset": ["pet", "dtd", "aircraft", "food101", "flowers", "cars"],
     "--num_workers": 8,
     "--ckpt": [
-        "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28/last.pth",
-        "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46/last.pth",
-        "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00/last.pth"
+        "/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/SINCERE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_cosine_warm_2025_11_27-22_17_28/last.pth",
+        "/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/SupCon_imagenet100_resnet50_lr_0.6898648307306074_decay_0.0001_bsz_512_temp_0.12_trial_0_cosine_warm_2025_11_29-05_55_46/last.pth",
+        "/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/save/SupCon/exp-final-imagenet100/imagenet100_models/EpsSupInfoNCE_imagenet100_resnet50_lr_0.36238983183884776_decay_0.0001_bsz_512_temp_0.08_trial_0_eps_0.1_cosine_warm_2025_12_12-16_04_00/last.pth"
     ],
 }
 
@@ -30,7 +30,7 @@ slurm_dict = {
     "-t": "0-2:00:00",
     "--gres": "gpu:l40:1",
     "-c": 8,
-    "-o": "/cluster/tufts/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/transfer-feb/%A_%a.out",
+    "-o": "/cluster/s/AAAAAAlab/mDDD01/Git/SupContrast/slurm_out/transfer-feb/%A_%a.out",
 }
 
 

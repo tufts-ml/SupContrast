@@ -68,9 +68,9 @@ def parse_option():
 
     # set the path according to the environment
     if opt.dataset == 'imagenet100':
-        opt.data_folder = '/cluster/tufts/AAAAAAlab/datasets/ImageNet100/train/'
+        opt.data_folder = '/cluster/s/AAAAAAlab/datasets/ImageNet100/train/'
     elif opt.dataset == 'imagenet':
-        opt.data_folder = '/cluster/tufts/AAAAAAlab/datasets/ImageNet/train/'
+        opt.data_folder = '/cluster/s/AAAAAAlab/datasets/ImageNet/train/'
     else:
         opt.data_folder = './datasets/'
     opt.model_path = './save/SupCon/{}_models'.format(opt.dataset)
